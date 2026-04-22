@@ -163,461 +163,6 @@ def rename_zip_to_osz(path: str) -> int:
     return count
 
 
-class ConverterTab:
-    def __init__(self, app, parent):
-        self.app = app
-        self.parent = parent
-        self._build()
-
-    def _build(self):
-        app = self.app
-
-        # ================= 根容器 =================
-        main = ttk.Frame(self.parent, style="App.TFrame", padding=20)
-        main.grid(row=0, column=0, sticky="nsew")
-
-        self.parent.columnconfigure(0, weight=1)
-        self.parent.rowconfigure(0, weight=1)
-
-        main.columnconfigure(0, weight=1)
-        main.rowconfigure(1, weight=1)
-
-        # ================= HEADER =================
-        header = ttk.Frame(main, style="App.TFrame")
-        header.grid(row=0, column=0, sticky="ew")
-        header.columnconfigure(0, weight=1)
-
-        ttk.Label(header, text=APP_TITLE, style="Title.TLabel").grid(
-            row=0, column=0, sticky="w"
-        )
-
-        ttk.Label(
-            header,
-            text="现有转换流程保持不变；难度分析作为转换后的后处理步骤加入，支持关闭、单个目标和全部输出三种模式。",
-            style="Subtitle.TLabel",
-            wraplength=980,
-            justify="left",
-        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
-
-        # ================= 左右分割 =================
-        content = ttk.PanedWindow(main, orient=tk.HORIZONTAL)
-        content.grid(row=1, column=0, sticky="nsew", pady=(18, 14))
-
-        # ================= 左侧 =================
-        left = ttk.Frame(content, style="App.TFrame")
-        left.columnconfigure(0, weight=1)
-        content.add(left, weight=1)
-
-        # ================= 右侧（上下分割） =================
-        right_paned = ttk.PanedWindow(content, orient=tk.VERTICAL)
-        content.add(right_paned, weight=2)
-
-        right_top = ttk.Frame(right_paned, style="App.TFrame")
-        right_top.columnconfigure(0, weight=1)
-        right_paned.add(right_top, weight=1)
-
-        right_bottom = ttk.Frame(right_paned, style="App.TFrame")
-        right_bottom.columnconfigure(0, weight=1)
-        right_bottom.rowconfigure(0, weight=1)
-        right_paned.add(right_bottom, weight=2)
-
-        # ================= 左侧内容 =================
-        # 模式
-        mode_box = ttk.LabelFrame(left, text="转换模式", style="Card.TLabelframe")
-        mode_box.grid(row=0, column=0, sticky="ew")
-
-        for i, (v, t) in enumerate([
-            ("single", "转换单个压缩包"),
-            ("batch", "批量转换文件夹中的 .osz"),
-            ("zip", "把 .zip 改名成 .osz"),
-        ]):
-            btn = ttk.Radiobutton(
-                mode_box,
-                text=t,
-                variable=app.mode_var,
-                value=v,
-                command=app._sync_mode_widgets,
-            )
-            btn.grid(row=i, column=0, sticky="w", pady=2)
-            app.mode_buttons.append(btn)
-
-        ttk.Label(
-            mode_box,
-            textvariable=app.mode_hint_var,
-            style="Hint.TLabel",
-            wraplength=300,
-        ).grid(row=3, column=0, sticky="w")
-
-        # 选项
-        option_box = ttk.LabelFrame(
-            left, text="转换选项", style="Card.TLabelframe")
-        option_box.grid(row=1, column=0, sticky="ew", pady=10)
-
-        hitsound_check = ttk.Checkbutton(
-            option_box, text="包含击打音效", variable=app.hitsound_var
-        )
-        hitsound_check.grid(row=0, column=0, sticky="w")
-
-        bg_check = ttk.Checkbutton(
-            option_box, text="处理背景图片", variable=app.bg_var
-        )
-        bg_check.grid(row=0, column=1, sticky="w")
-
-        ttk.Label(option_box, text="偏移量(ms)").grid(row=1, column=0, sticky="w")
-        ttk.Label(option_box, text="判定难度").grid(row=1, column=1, sticky="w")
-
-        app.offset_entry = ttk.Entry(option_box, textvariable=app.offset_var)
-        app.offset_entry.grid(row=2, column=0, sticky="ew")
-
-        judge_frame = ttk.Frame(option_box)
-        judge_frame.grid(row=2, column=1, sticky="ew")
-
-        for i, label in enumerate(JUDGE_OPTIONS.keys()):
-            btn = ttk.Radiobutton(
-                judge_frame,
-                text=label,
-                variable=app.judge_var,
-                value=label,
-            )
-            btn.grid(row=i // 2, column=i % 2, sticky="w")
-            app.judge_buttons.append(btn)
-
-        # 分析
-        analysis_box = ttk.LabelFrame(
-            left, text="难度分析", style="Card.TLabelframe")
-        analysis_box.grid(row=2, column=0, sticky="ew", pady=10)
-
-        ttk.Label(analysis_box, text="分析模式").grid(row=0, column=0)
-        ttk.Label(analysis_box, text="目标").grid(row=0, column=1)
-
-        frame = ttk.Frame(analysis_box)
-        frame.grid(row=1, column=0, sticky="ew")
-
-        for i, (v, t) in enumerate(ANALYSIS_MODE_LABELS.items()):
-            btn = ttk.Radiobutton(
-                frame,
-                text=t,
-                variable=app.analysis_mode_var,
-                value=v,
-                command=app._sync_mode_widgets,
-            )
-            btn.grid(row=i, column=0, sticky="w")
-            app.analysis_mode_buttons.append(btn)
-
-        app.analysis_target_entry = ttk.Entry(
-            analysis_box, textvariable=app.analysis_target_var
-        )
-        app.analysis_target_entry.grid(row=1, column=1, sticky="ew")
-
-        # ================= 右上 =================
-        path_box = ttk.LabelFrame(
-            right_top, text="文件路径", style="Card.TLabelframe")
-        path_box.grid(row=0, column=0, sticky="ew")
-
-        ttk.Label(path_box, textvariable=app.input_label_var).grid(
-            row=0, column=0)
-
-        input_entry = ttk.Entry(path_box, textvariable=app.input_var)
-        input_entry.grid(row=1, column=0, sticky="ew")
-
-        btn_row = ttk.Frame(path_box)
-        btn_row.grid(row=2, column=0, sticky="w")
-
-        app.input_file_button = ttk.Button(
-            btn_row, text="选择文件", command=app._select_input_file
-        )
-        app.input_file_button.grid(row=0, column=0)
-
-        app.input_folder_button = ttk.Button(
-            btn_row, text="选择文件夹", command=app._select_input_folder
-        )
-        app.input_folder_button.grid(row=0, column=1)
-
-        app.output_frame = ttk.Frame(path_box)
-        app.output_frame.grid(row=3, column=0, sticky="ew")
-
-        ttk.Label(app.output_frame, text="输出文件夹").grid(row=0, column=0)
-
-        output_entry = ttk.Entry(app.output_frame, textvariable=app.output_var)
-        output_entry.grid(row=1, column=0, sticky="ew")
-
-        app.output_button = ttk.Button(
-            app.output_frame, text="选择输出文件夹", command=app._select_output
-        )
-        app.output_button.grid(row=2, column=0)
-
-        # 操作区
-        action_box = ttk.LabelFrame(right_top, text="开始执行")
-        action_box.grid(row=1, column=0, sticky="ew", pady=10)
-
-        app.start_button = ttk.Button(
-            action_box, text="开始执行", command=app._start
-        )
-        app.start_button.grid(row=0, column=0)
-
-        ttk.Button(
-            action_box,
-            text="打开输出文件夹",
-            command=app._open_output_folder,
-        ).grid(row=0, column=1, padx=5)
-
-        app.export_button = ttk.Button(
-            action_box,
-            text="导出表格",
-            command=app._export_results_table,
-            state="disabled",
-        )
-        app.export_button.grid(row=0, column=2, padx=5)
-
-        ttk.Button(
-            action_box,
-            text="清空日志",
-            command=app._clear_log,
-        ).grid(row=0, column=3, padx=5)
-
-        app.progress_bar = ttk.Progressbar(action_box, mode="indeterminate")
-        app.progress_bar.grid(row=1, column=0, columnspan=4, sticky="ew")
-
-        # ================= 右下日志 =================
-        log_box = ttk.LabelFrame(right_bottom, text="运行日志")
-        log_box.grid(row=0, column=0, sticky="nsew")
-
-        log_box.columnconfigure(0, weight=1)
-        log_box.rowconfigure(0, weight=1)
-
-        app.log_box = ScrolledText(
-            log_box,
-            wrap="word",
-            font=("Consolas", 10),
-            padx=8,
-            pady=8,
-        )
-        app.log_box.grid(row=0, column=0, sticky="nsew")
-
-        # ================= 控件注册 =================
-        app.controls_to_toggle = [
-            *app.mode_buttons,
-            *app.judge_buttons,
-            *app.analysis_mode_buttons,
-            hitsound_check,
-            bg_check,
-            input_entry,
-            output_entry,
-            app.offset_entry,
-            app.input_file_button,
-            app.input_folder_button,
-            app.output_button,
-            app.analysis_target_entry,
-        ]
-
-        app._append_log("Get Ready.")
-        app._sync_export_button()
-
-
-class AnalyzerTab:
-    def __init__(self, app, parent):
-        self.app = app
-        self.parent = parent
-
-        from queue import Queue
-        import threading
-
-        self.queue = Queue()
-        self.worker_thread = None
-
-        self._build()
-        self.parent.after(150, self._process_queue)
-
-    def _build(self):
-        import tkinter as tk
-        from tkinter import ttk, filedialog
-        from tkinter.scrolledtext import ScrolledText
-
-        app = self.app
-
-        main = ttk.Frame(self.parent, padding=20)
-        main.pack(fill="both", expand=True)
-
-        # ===== 输入区域 =====
-        input_box = ttk.LabelFrame(main, text="输入")
-        input_box.pack(fill="x", pady=5)
-
-        self.input_var = tk.StringVar()
-
-        ttk.Entry(input_box, textvariable=self.input_var).pack(
-            fill="x", padx=5, pady=5)
-
-        btn_row = ttk.Frame(input_box)
-        btn_row.pack(fill="x", padx=5, pady=5)
-
-        ttk.Button(btn_row, text="选择文件",
-                   command=self._select_file).pack(side="left")
-        ttk.Button(btn_row, text="选择文件夹", command=self._select_folder).pack(
-            side="left", padx=5)
-
-        # ===== 控制区域 =====
-        control_box = ttk.LabelFrame(main, text="控制")
-        control_box.pack(fill="x", pady=5)
-
-        self.start_btn = ttk.Button(
-            control_box, text="开始分析", command=self._start)
-        self.start_btn.pack(side="left", padx=5, pady=5)
-
-        self.progress = ttk.Progressbar(control_box, mode="indeterminate")
-        self.progress.pack(fill="x", padx=5, pady=5)
-
-        # ===== 表格 =====
-        table_box = ttk.LabelFrame(main, text="结果")
-        table_box.pack(fill="both", expand=True, pady=5)
-
-        columns = ("file", "difficulty", "label", "raw", "source")
-
-        self.tree = ttk.Treeview(table_box, columns=columns, show="headings")
-
-        for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, anchor="center", width=120)
-
-        self.tree.pack(fill="both", expand=True)
-
-        # ===== 日志 =====
-        log_box = ttk.LabelFrame(main, text="日志")
-        log_box.pack(fill="both", expand=True, pady=5)
-
-        self.log = ScrolledText(log_box, height=8)
-        self.log.pack(fill="both", expand=True)
-
-    # =========================
-    # 文件选择
-    # =========================
-    def _select_file(self):
-        from tkinter import filedialog
-        path = filedialog.askopenfilename(
-            filetypes=[("BMS", "*.bms *.bme *.bml *.pms"), ("All", "*.*")]
-        )
-        if path:
-            self.input_var.set(path)
-
-    def _select_folder(self):
-        from tkinter import filedialog
-        path = filedialog.askdirectory()
-        if path:
-            self.input_var.set(path)
-
-    # =========================
-    # 启动分析
-    # =========================
-    def _start(self):
-        if self.worker_thread and self.worker_thread.is_alive():
-            return
-
-        path = self.input_var.get().strip()
-        if not path:
-            self._log("请选择输入路径")
-            return
-
-        self.progress.start(10)
-        self.start_btn.config(state="disabled")
-        self.tree.delete(*self.tree.get_children())
-
-        import threading
-        self.worker_thread = threading.Thread(
-            target=self._run, args=(path,), daemon=True)
-        self.worker_thread.start()
-
-    # =========================
-    # 核心分析逻辑
-    # =========================
-    def _run(self, path):
-        from pathlib import Path
-        from om2bms.analysis.service import DifficultyAnalysisService
-
-        service = DifficultyAnalysisService()
-
-        try:
-            p = Path(path)
-
-            if p.is_file():
-                self._analyze_one(service, p)
-            else:
-                files = list(p.glob("*.bms")) + list(p.glob("*.bme")) + \
-                    list(p.glob("*.bml")) + list(p.glob("*.pms"))
-
-                total = len(files)
-                for i, f in enumerate(files, 1):
-                    self.queue.put(("log", f"[{i}/{total}] {f.name}"))
-                    self._analyze_one(service, f)
-
-            self.queue.put(("done", "分析完成"))
-
-        except Exception as e:
-            self.queue.put(("error", str(e)))
-
-    def _analyze_one(self, service, path):
-        try:
-            self._log("Analyze one")
-            result = service.analyze_file(path)
-
-            self.queue.put((
-                "result",
-                {
-                    "file": path.name,
-                    "difficulty": result.estimated_difficulty,
-                    "label": result.label,
-                    "raw": result.raw_score,
-                    "source": result.source,
-                }
-            ))
-        except Exception as e:
-            self.queue.put(("log", f"失败: {path.name} {e}"))
-
-    # =========================
-    # UI更新
-    # =========================
-    def _process_queue(self):
-        from queue import Empty
-
-        try:
-            while True:
-                kind, payload = self.queue.get_nowait()
-
-                if kind == "log":
-                    self._log(payload)
-
-                elif kind == "result":
-                    self.tree.insert("", "end", values=(
-                        payload["file"],
-                        f"{payload['difficulty']:.2f}",
-                        payload["label"],
-                        f"{payload['raw']:.4f}",
-                        payload["source"],
-                    ))
-
-                elif kind == "done":
-                    self._log(payload)
-                    self.progress.stop()
-                    self.start_btn.config(state="normal")
-
-                elif kind == "error":
-                    self._log("错误: " + payload)
-                    self.progress.stop()
-                    self.start_btn.config(state="normal")
-
-        except Empty:
-            pass
-
-        self.parent.after(150, self._process_queue)
-
-    def _log(self, text):
-        self.log.insert("end", text + "\n")
-        self.log.see("end")
-
-
-class TableGenTab:
-    def __init__(self, parent: ttk.Frame):
-        ttk.Label(parent, text="待开发").pack()
-
-
 class Om2BmsGuiApp:
     def __init__(self) -> None:
         self.root = tk.Tk()
@@ -677,11 +222,17 @@ class Om2BmsGuiApp:
         # self.root.after(350, self._show_open_source_warning)
 
     def _build_ui(self) -> None:
+        # =========================
+        # 最外层容器
+        # =========================
         container = ttk.Frame(self.root, style="App.TFrame")
         container.grid(row=0, column=0, sticky="nsew")
         container.columnconfigure(0, weight=1)
         container.rowconfigure(0, weight=1)
 
+        # =========================
+        # Notebook（标签页）
+        # =========================
         notebook = ttk.Notebook(container)
         notebook.grid(row=0, column=0, sticky="nsew")
 
@@ -693,10 +244,296 @@ class Om2BmsGuiApp:
         notebook.add(tab_analyzer, text="ANALYZER")
         notebook.add(tab_tablegen, text="TABLE GENERATOR")
 
-        # ✅ 关键：把 UI 构建交给 class
-        ConverterTab(self, tab_converter)
-        AnalyzerTab(self, tab_analyzer)
-        TableGenTab(tab_tablegen)
+        main = ttk.Frame(tab_converter, style="App.TFrame", padding=20)
+        main.grid(row=0, column=0, sticky="nsew")
+
+        tab_converter.columnconfigure(0, weight=1)
+        tab_converter.rowconfigure(0, weight=1)
+
+        main.columnconfigure(0, weight=1)
+        main.rowconfigure(1, weight=1)
+        main.rowconfigure(2, weight=2)
+
+        header = ttk.Frame(main, style="App.TFrame")
+        header.grid(row=0, column=0, sticky="ew")
+        header.columnconfigure(0, weight=1)
+
+        ttk.Label(header, text=APP_TITLE, style="Title.TLabel").grid(
+            row=0, column=0, sticky="w")
+        ttk.Label(
+            header,
+            text="现有转换流程保持不变；难度分析作为转换后的后处理步骤加入，支持关闭、单个目标和全部输出三种模式。",
+            style="Subtitle.TLabel",
+            wraplength=980,
+            justify="left",
+        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
+
+        content = ttk.Frame(main, style="App.TFrame")
+        content.grid(row=1, column=0, sticky="nsew", pady=(18, 14))
+        content.columnconfigure(0, weight=5)
+        content.columnconfigure(1, weight=7)
+        content.rowconfigure(0, weight=1)
+
+        left = ttk.Frame(content, style="App.TFrame")
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        left.columnconfigure(0, weight=1)
+        left.rowconfigure(3, weight=0)
+
+        right = ttk.Frame(content, style="App.TFrame")
+        right.grid(row=0, column=1, sticky="nsew")
+        right.columnconfigure(0, weight=1)
+
+        # ===== 以下开始：完全复制你原代码 =====
+        # （从 mode_box 到 log_box 全部原样粘贴）
+
+        mode_box = ttk.LabelFrame(left, text="转换模式", style="Card.TLabelframe")
+        mode_box.grid(row=0, column=0, sticky="ew")
+        mode_box.columnconfigure(0, weight=1)
+
+        radio_specs = [
+            ("single", "转换单个压缩包"),
+            ("batch", "批量转换文件夹中的 .osz"),
+            ("zip", "把 .zip 改名成 .osz"),
+        ]
+        for row, (value, text) in enumerate(radio_specs):
+            button = ttk.Radiobutton(
+                mode_box,
+                text=text,
+                variable=self.mode_var,
+                value=value,
+                command=self._sync_mode_widgets,
+            )
+            button.grid(row=row, column=0, sticky="w", pady=(0, 6))
+            self.mode_buttons.append(button)
+
+        ttk.Label(
+            mode_box,
+            textvariable=self.mode_hint_var,
+            style="Hint.TLabel",
+            wraplength=330,
+            justify="left",
+        ).grid(row=3, column=0, sticky="w", pady=(6, 0))
+
+        option_box = ttk.LabelFrame(
+            left, text="转换选项", style="Card.TLabelframe")
+        option_box.grid(row=1, column=0, sticky="ew", pady=(12, 0))
+        option_box.columnconfigure(0, weight=1)
+        option_box.columnconfigure(1, weight=1)
+
+        hitsound_check = ttk.Checkbutton(
+            option_box, text="包含击打音效", variable=self.hitsound_var)
+        hitsound_check.grid(row=0, column=0, sticky="w")
+
+        bg_check = ttk.Checkbutton(
+            option_box, text="处理背景图片", variable=self.bg_var)
+        bg_check.grid(row=0, column=1, sticky="w", padx=(12, 0))
+
+        ttk.Label(option_box, text="偏移量 (ms)").grid(
+            row=1, column=0, sticky="w", pady=(12, 0))
+        ttk.Label(option_box, text="判定难度").grid(
+            row=1, column=1, sticky="w", padx=(12, 0), pady=(12, 0))
+
+        self.offset_entry = ttk.Entry(option_box, textvariable=self.offset_var)
+        self.offset_entry.grid(row=2, column=0, sticky="ew", pady=(6, 0))
+
+        judge_frame = ttk.Frame(option_box)
+        judge_frame.grid(row=2, column=1, sticky="ew",
+                         padx=(12, 0), pady=(6, 0))
+        judge_frame.columnconfigure(0, weight=1)
+        judge_frame.columnconfigure(1, weight=1)
+        for index, label in enumerate(JUDGE_OPTIONS.keys()):
+            button = ttk.Radiobutton(
+                judge_frame,
+                text=label,
+                variable=self.judge_var,
+                value=label,
+            )
+            button.grid(row=index // 2, column=index %
+                        2, sticky="w", padx=(0, 8), pady=(0, 4))
+            self.judge_buttons.append(button)
+
+        analysis_box = ttk.LabelFrame(
+            left, text="难度分析", style="Card.TLabelframe")
+        analysis_box.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        analysis_box.columnconfigure(0, weight=1)
+        analysis_box.columnconfigure(1, weight=1)
+
+        ttk.Label(analysis_box, text="分析模式").grid(row=0, column=0, sticky="w")
+        ttk.Label(analysis_box, text="目标选择器").grid(
+            row=0, column=1, sticky="w", padx=(12, 0))
+
+        analysis_mode_frame = ttk.Frame(analysis_box)
+        analysis_mode_frame.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        analysis_mode_frame.columnconfigure(0, weight=1)
+        for row, (mode_value, mode_label) in enumerate(ANALYSIS_MODE_LABELS.items()):
+            button = ttk.Radiobutton(
+                analysis_mode_frame,
+                text=mode_label,
+                variable=self.analysis_mode_var,
+                value=mode_value,
+                command=self._sync_mode_widgets,
+            )
+            button.grid(row=row, column=0, sticky="w", pady=(0, 4))
+            self.analysis_mode_buttons.append(button)
+
+        self.analysis_target_entry = ttk.Entry(
+            analysis_box, textvariable=self.analysis_target_var)
+        self.analysis_target_entry.grid(
+            row=1, column=1, sticky="ew", padx=(12, 0), pady=(6, 0))
+
+        ttk.Label(
+            analysis_box,
+            text="单目标模式支持 chartId、输出文件名、难度标签、源文件名或序号，不会硬编码为 Easy/Normal/Hard。",
+            style="Hint.TLabel",
+            wraplength=330,
+            justify="left",
+        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(8, 0))
+
+        path_box = ttk.LabelFrame(right, text="文件路径", style="Card.TLabelframe")
+        path_box.grid(row=0, column=0, sticky="ew")
+        path_box.columnconfigure(0, weight=1)
+
+        ttk.Label(path_box, textvariable=self.input_label_var).grid(
+            row=0, column=0, sticky="w")
+
+        input_entry = ttk.Entry(path_box, textvariable=self.input_var)
+        input_entry.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+
+        input_button_row = ttk.Frame(path_box)
+        input_button_row.grid(row=2, column=0, sticky="w", pady=(10, 0))
+
+        self.input_file_button = ttk.Button(
+            input_button_row,
+            text="选择文件",
+            style="Secondary.TButton",
+            command=self._select_input_file,
+        )
+        self.input_file_button.grid(row=0, column=0, sticky="w")
+
+        self.input_folder_button = ttk.Button(
+            input_button_row,
+            text="选择文件夹",
+            style="Secondary.TButton",
+            command=self._select_input_folder,
+        )
+        self.input_folder_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+
+        ttk.Label(
+            path_box,
+            text="路径支持手动输入；窗口放大后输入框会自动变宽。",
+            style="Hint.TLabel",
+        ).grid(row=3, column=0, sticky="w", pady=(8, 0))
+
+        self.output_frame = ttk.Frame(path_box)
+        self.output_frame.grid(row=4, column=0, sticky="ew", pady=(14, 0))
+        self.output_frame.columnconfigure(0, weight=1)
+
+        ttk.Label(self.output_frame, text="输出文件夹").grid(
+            row=0, column=0, sticky="w")
+        output_entry = ttk.Entry(
+            self.output_frame, textvariable=self.output_var)
+        output_entry.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+
+        self.output_button = ttk.Button(
+            self.output_frame,
+            text="选择输出文件夹",
+            style="Secondary.TButton",
+            command=self._select_output,
+        )
+        self.output_button.grid(row=2, column=0, sticky="w", pady=(10, 0))
+
+        action_box = ttk.LabelFrame(
+            right, text="开始执行", style="Card.TLabelframe")
+        action_box.grid(row=1, column=0, sticky="ew", pady=(12, 0))
+        action_box.columnconfigure(0, weight=1)
+
+        button_row = ttk.Frame(action_box)
+        button_row.grid(row=0, column=0, sticky="w")
+
+        self.start_button = ttk.Button(
+            button_row,
+            text="开始执行",
+            style="Primary.TButton",
+            command=self._start,
+        )
+        self.start_button.grid(row=0, column=0, sticky="w")
+
+        open_output_button = ttk.Button(
+            button_row,
+            text="打开输出文件夹",
+            style="Secondary.TButton",
+            command=self._open_output_folder,
+        )
+        open_output_button.grid(row=0, column=1, sticky="w", padx=(10, 0))
+
+        self.export_button = ttk.Button(
+            button_row,
+            text="导出表格",
+            style="Secondary.TButton",
+            command=self._export_results_table,
+            state="disabled",
+        )
+        self.export_button.grid(row=0, column=4, sticky="w", padx=(10, 0))
+
+        clear_log_button = ttk.Button(
+            button_row,
+            text="清空日志",
+            style="Secondary.TButton",
+            command=self._clear_log,
+        )
+        clear_log_button.grid(row=0, column=5, sticky="w", padx=(10, 0))
+
+        self.progress_bar = ttk.Progressbar(action_box, mode="indeterminate")
+        self.progress_bar.grid(row=1, column=0, sticky="ew", pady=(14, 0))
+
+        status_frame = ttk.Frame(action_box)
+        status_frame.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        status_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(status_frame, text="当前状态").grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            status_frame,
+            textvariable=self.status_var,
+            font=("Segoe UI Semibold", 11),
+            foreground="#103f91",
+        ).grid(row=0, column=1, sticky="w", padx=(12, 0))
+
+        log_box = ttk.LabelFrame(main, text="运行日志", style="Card.TLabelframe")
+        log_box.grid(row=2, column=0, sticky="nsew")
+        log_box.columnconfigure(0, weight=1)
+        log_box.rowconfigure(0, weight=1)
+
+        self.log_box = ScrolledText(
+            log_box,
+            wrap="word",
+            height=24,
+            font=("Consolas", 11),
+            padx=10,
+            pady=10,
+            relief="flat",
+            borderwidth=0,
+            background="#fbfcfe",
+            foreground="#1c2838",
+            undo=True,
+        )
+        self.log_box.grid(row=0, column=0, sticky="nsew")
+
+        self.controls_to_toggle = [
+            *self.mode_buttons,
+            *self.judge_buttons,
+            *self.analysis_mode_buttons,
+            hitsound_check,
+            bg_check,
+            input_entry,
+            output_entry,
+            self.offset_entry,
+            self.input_file_button,
+            self.input_folder_button,
+            self.output_button,
+            self.analysis_target_entry
+        ]
+        ttk.Label(tab_analyzer, text="待开发").pack()
+        ttk.Label(tab_tablegen, text="待开发").pack()
 
         self._append_log("Get Ready.")
         self._sync_export_button()
