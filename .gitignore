@@ -17,5 +17,8 @@ dist/
 *.html
 localpycs/
 
+OSZ-to-BMS-Converter.exe
+OM2BMS-Toolkit.exe
+
 
 output/

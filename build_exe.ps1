@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSCommandPath
 $distDir = Join-Path $projectRoot "dist"
 $buildDir = Join-Path $projectRoot "build"
-$exeName = "OSZ-to-BMS-Converter"
+$exeName = "OM2BMS-Toolkit"
 
 function Remove-ProjectPath {
     param(
