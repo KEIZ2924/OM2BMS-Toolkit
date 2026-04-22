@@ -22,7 +22,7 @@ from om2bms.analysis.service import DifficultyAnalyzerService
 from om2bms.services.conversion_service import ConversionService
 
 
-APP_TITLE = "OSZ2BMS"
+APP_TITLE = "OMSTOOLKIT"
 DEFAULT_OUTPUT_DIRNAME = "output"
 JUDGE_OPTIONS = {
     "EASY": 3,
@@ -260,11 +260,11 @@ class ConverterTab:
         option_box.columnconfigure(0, weight=1)
         option_box.columnconfigure(1, weight=1)
         option_box.columnconfigure(2, weight=1)  # ✅ 为T/N新增一列
-
         hitsound_check = ttk.Checkbutton(
             option_box, text="包含击打音效", variable=app.hitsound_var
         )
         hitsound_check.grid(row=0, column=0, sticky="w")
+        app.hitsound_var.set(False)
 
         bg_check = ttk.Checkbutton(option_box, text="处理背景图片", variable=app.bg_var)
         bg_check.grid(row=0, column=1, sticky="w")
@@ -318,6 +318,7 @@ class ConverterTab:
 
         frame = ttk.Frame(analysis_box)
         frame.grid(row=1, column=0, sticky="ew")
+        app.analysis_mode_var = tk.StringVar(value=DifficultyAnalysisMode.ALL.value)
 
         for i, (v, t) in enumerate(ANALYSIS_MODE_LABELS.items()):
             btn = ttk.Radiobutton(
@@ -778,8 +779,8 @@ class Om2BmsGuiApp:
         tab_analyzer = ttk.Frame(notebook)
         tab_tablegen = ttk.Frame(notebook)
 
-        notebook.add(tab_converter, text="CONVERTER")
-        notebook.add(tab_analyzer, text="ANALYZER")
+        notebook.add(tab_converter, text="转谱")
+        notebook.add(tab_analyzer, text="BMS难度分析")
         notebook.add(tab_tablegen, text="TABLE GENERATOR")
 
         # ✅ 关键：把 UI 构建交给 class

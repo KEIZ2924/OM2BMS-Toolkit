@@ -531,7 +531,7 @@ class OsuManiaToBMSParser:
         buffer.append("*---------------------- HEADER FIELD")
         buffer.append("")
         buffer.append("#PLAYER 1")
-        buffer.append("#GENRE " + genre_text)
+        # buffer.append("#GENRE " + genre_text)
         buffer.append("#TITLE " + title_text)
         buffer.append("#SUBTITLE " + "[" + version_text + "]")
         buffer.append("#ARTIST " + artist_text)
