@@ -3,6 +3,19 @@ __pycache__/
 *.pyo
 *.pyd
 
-om2bms/services/__pycache__/
+
+build/
+dist/
+
+# 可选：更精确地排除内部文件
+*.spec
+*.toc
+*.pkg
+*.pyz
+*.zip
+*.txt
+*.html
+localpycs/
+
 
 output/
