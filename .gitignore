@@ -3,4 +3,6 @@ __pycache__/
 *.pyo
 *.pyd
 
+om2bms/services/__pycache__/
+
 output/

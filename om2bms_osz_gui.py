@@ -206,25 +206,29 @@ class ConverterTab:
         # ================= 左侧 =================
         left = ttk.Frame(content, style="App.TFrame")
         left.columnconfigure(0, weight=1)
-        content.add(left, weight=1)
+        left.rowconfigure(2, weight=1)
 
-        # ================= 右侧（上下分割） =================
+        content.add(left, weight=3)
+
+        # ================= 右侧 =================
         right_paned = ttk.PanedWindow(content, orient=tk.VERTICAL)
-        content.add(right_paned, weight=2)
+        content.add(right_paned, weight=7)
 
+        # ================= 右上 =================
         right_top = ttk.Frame(right_paned, style="App.TFrame")
         right_top.columnconfigure(0, weight=1)
-        right_paned.add(right_top, weight=1)
+        right_paned.add(right_top, weight=4)
 
+        # ================= 右下 =================
         right_bottom = ttk.Frame(right_paned, style="App.TFrame")
         right_bottom.columnconfigure(0, weight=1)
         right_bottom.rowconfigure(0, weight=1)
-        right_paned.add(right_bottom, weight=2)
+        right_paned.add(right_bottom, weight=3)
 
         # ================= 左侧内容 =================
-        # 模式
+        # ===== 转换模式 =====
         mode_box = ttk.LabelFrame(left, text="转换模式", style="Card.TLabelframe")
-        mode_box.grid(row=0, column=0, sticky="ew")
+        mode_box.grid(row=0, column=0, sticky="ew", padx=10, pady=(0, 8))
 
         for i, (v, t) in enumerate([
             ("single", "转换单个压缩包"),
@@ -245,13 +249,14 @@ class ConverterTab:
             mode_box,
             textvariable=app.mode_hint_var,
             style="Hint.TLabel",
-            wraplength=300,
+            wraplength=280,
         ).grid(row=3, column=0, sticky="w")
 
-        # 选项
-        option_box = ttk.LabelFrame(
-            left, text="转换选项", style="Card.TLabelframe")
-        option_box.grid(row=1, column=0, sticky="ew", pady=10)
+        # ===== 转换选项 =====
+        option_box = ttk.LabelFrame(left, text="转换选项", style="Card.TLabelframe")
+        option_box.grid(row=1, column=0, sticky="ew", padx=10, pady=8)
+        option_box.columnconfigure(0, weight=1)
+        option_box.columnconfigure(1, weight=1)
 
         hitsound_check = ttk.Checkbutton(
             option_box, text="包含击打音效", variable=app.hitsound_var
@@ -282,10 +287,10 @@ class ConverterTab:
             btn.grid(row=i // 2, column=i % 2, sticky="w")
             app.judge_buttons.append(btn)
 
-        # 分析
-        analysis_box = ttk.LabelFrame(
-            left, text="难度分析", style="Card.TLabelframe")
-        analysis_box.grid(row=2, column=0, sticky="ew", pady=10)
+        # ===== 难度分析 =====
+        analysis_box = ttk.LabelFrame(left, text="难度分析", style="Card.TLabelframe")
+        analysis_box.grid(row=2, column=0, sticky="ew", padx=10, pady=8)
+        analysis_box.columnconfigure(1, weight=1)
 
         ttk.Label(analysis_box, text="分析模式").grid(row=0, column=0)
         ttk.Label(analysis_box, text="目标").grid(row=0, column=1)
@@ -309,19 +314,20 @@ class ConverterTab:
         )
         app.analysis_target_entry.grid(row=1, column=1, sticky="ew")
 
-        # ================= 右上 =================
-        path_box = ttk.LabelFrame(
-            right_top, text="文件路径", style="Card.TLabelframe")
-        path_box.grid(row=0, column=0, sticky="ew")
+        # ================= 右上：路径 =================
+        path_box = ttk.LabelFrame(right_top, text="文件路径", style="Card.TLabelframe")
+        path_box.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
+        path_box.columnconfigure(0, weight=1)
 
         ttk.Label(path_box, textvariable=app.input_label_var).grid(
-            row=0, column=0)
+            row=0, column=0, sticky="w"
+        )
 
         input_entry = ttk.Entry(path_box, textvariable=app.input_var)
-        input_entry.grid(row=1, column=0, sticky="ew")
+        input_entry.grid(row=1, column=0, sticky="ew", pady=2)
 
         btn_row = ttk.Frame(path_box)
-        btn_row.grid(row=2, column=0, sticky="w")
+        btn_row.grid(row=2, column=0, sticky="w", pady=2)
 
         app.input_file_button = ttk.Button(
             btn_row, text="选择文件", command=app._select_input_file
@@ -334,32 +340,36 @@ class ConverterTab:
         app.input_folder_button.grid(row=0, column=1)
 
         app.output_frame = ttk.Frame(path_box)
-        app.output_frame.grid(row=3, column=0, sticky="ew")
+        app.output_frame.grid(row=3, column=0, sticky="ew", pady=4)
+        app.output_frame.columnconfigure(0, weight=1)
 
-        ttk.Label(app.output_frame, text="输出文件夹").grid(row=0, column=0)
+        ttk.Label(app.output_frame, text="输出文件夹").grid(row=0, column=0, sticky="w")
 
         output_entry = ttk.Entry(app.output_frame, textvariable=app.output_var)
-        output_entry.grid(row=1, column=0, sticky="ew")
+        output_entry.grid(row=1, column=0, sticky="ew", pady=2)
 
         app.output_button = ttk.Button(
             app.output_frame, text="选择输出文件夹", command=app._select_output
         )
-        app.output_button.grid(row=2, column=0)
+        app.output_button.grid(row=2, column=0, sticky="w")
 
-        # 操作区
+        # ===== 操作区 =====
         action_box = ttk.LabelFrame(right_top, text="开始执行")
-        action_box.grid(row=1, column=0, sticky="ew", pady=10)
+        action_box.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+
+        for i in range(4):
+            action_box.columnconfigure(i, weight=1)
 
         app.start_button = ttk.Button(
             action_box, text="开始执行", command=app._start
         )
-        app.start_button.grid(row=0, column=0)
+        app.start_button.grid(row=0, column=0, sticky="ew")
 
         ttk.Button(
             action_box,
             text="打开输出文件夹",
             command=app._open_output_folder,
-        ).grid(row=0, column=1, padx=5)
+        ).grid(row=0, column=1, sticky="ew", padx=5)
 
         app.export_button = ttk.Button(
             action_box,
@@ -367,20 +377,20 @@ class ConverterTab:
             command=app._export_results_table,
             state="disabled",
         )
-        app.export_button.grid(row=0, column=2, padx=5)
+        app.export_button.grid(row=0, column=2, sticky="ew", padx=5)
 
         ttk.Button(
             action_box,
             text="清空日志",
             command=app._clear_log,
-        ).grid(row=0, column=3, padx=5)
+        ).grid(row=0, column=3, sticky="ew", padx=5)
 
         app.progress_bar = ttk.Progressbar(action_box, mode="indeterminate")
-        app.progress_bar.grid(row=1, column=0, columnspan=4, sticky="ew")
+        app.progress_bar.grid(row=1, column=0, columnspan=4, sticky="ew", pady=5)
 
-        # ================= 右下日志 =================
+        # ================= 日志 =================
         log_box = ttk.LabelFrame(right_bottom, text="运行日志")
-        log_box.grid(row=0, column=0, sticky="nsew")
+        log_box.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
 
         log_box.columnconfigure(0, weight=1)
         log_box.rowconfigure(0, weight=1)
@@ -393,6 +403,15 @@ class ConverterTab:
             pady=8,
         )
         app.log_box.grid(row=0, column=0, sticky="nsew")
+
+        # ================= 初始分割位置（关键） =================
+        def _init_pane():
+            total = content.winfo_width()
+            content.sashpos(0, int(total * 0.45)) #ui初始左右分割比例
+            total_h = right_paned.winfo_height()
+            right_paned.sashpos(0, int(total_h * 0.6)) 
+
+        self.parent.after(100, _init_pane)
 
         # ================= 控件注册 =================
         app.controls_to_toggle = [
@@ -530,9 +549,9 @@ class AnalyzerTab:
     # =========================
     def _run(self, path):
         from pathlib import Path
-        from om2bms.analysis.service import DifficultyAnalysisService
+        from om2bms.analysis.service import DifficultyAnalyzerService
 
-        service = DifficultyAnalysisService()
+        service = DifficultyAnalyzerService()
 
         try:
             p = Path(path)
@@ -698,7 +717,6 @@ class Om2BmsGuiApp:
         AnalyzerTab(self, tab_analyzer)
         TableGenTab(tab_tablegen)
 
-        self._append_log("Get Ready.")
         self._sync_export_button()
 
     def _sync_mode_widgets(self) -> None:
