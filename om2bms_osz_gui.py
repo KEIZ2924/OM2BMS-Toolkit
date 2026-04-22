@@ -251,7 +251,7 @@ class Om2BmsGuiApp:
         left = ttk.Frame(content, style="App.TFrame")
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left.columnconfigure(0, weight=1)
-        left.rowconfigure(3, weight=1)
+        left.rowconfigure(3, weight=0)
 
         right = ttk.Frame(content, style="App.TFrame")
         right.grid(row=0, column=1, sticky="nsew")
@@ -359,25 +359,6 @@ class Om2BmsGuiApp:
             wraplength=330,
             justify="left",
         ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(8, 0))
-
-        tips_box = ttk.LabelFrame(left, text="使用提示", style="Card.TLabelframe")
-        tips_box.grid(row=3, column=0, sticky="nsew", pady=(12, 0))
-        tips_box.columnconfigure(0, weight=1)
-
-        tips_text = (
-            "1. 单个模式适合处理一个 .osz / .zip；批量模式会遍历文件夹中的全部 .osz；ZIP 模式只改扩展名，不做转换。\n"
-            "2. 难度分析对象始终是最终导出的 BMS 文件，不是原始 OSZ；关闭分析时只做转换。\n"
-            "3. 单目标模式支持 chartId、输出文件名、难度标签、源文件名或序号；日志里会打印 chartId，方便下次精确指定。\n"
-            "4. 批量模式会对每个压缩包分别执行同样的分析策略；单个谱面分析失败不会回滚其他已输出结果。\n"
-            "5. 导出表格会保留当前这轮转换结果的完整字段，只是把分析核心列排在前面，方便查看。\n"
-            "6. 打开输出文件夹可直接查看产物；浏览源码会打开本地工程，导出源码包会打包当前源码目录，方便直接发人或整理到 GitHub。"
-        )
-        ttk.Label(
-            tips_box,
-            text=tips_text,
-            justify="left",
-            wraplength=330,
-        ).grid(row=0, column=0, sticky="w")
 
         path_box = ttk.LabelFrame(right, text="文件路径", style="Card.TLabelframe")
         path_box.grid(row=0, column=0, sticky="ew")
