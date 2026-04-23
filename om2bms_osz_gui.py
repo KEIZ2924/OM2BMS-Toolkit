@@ -16,11 +16,14 @@ from tkinter.scrolledtext import ScrolledText
 
 import tkinter as tk
 import tkinter.font as tkfont
+import json
 
 from om2bms.pipeline.types import ConversionOptions, ConversionResult, DifficultyAnalysisMode
 from om2bms.analysis.service import DifficultyAnalyzerService
 from om2bms.services.conversion_service import ConversionService
-
+from om2bms.table_generator.bms2json import append_missing_entry_if_needed
+from om2bms.table_generator.bms2json import append_score_entry_to_json
+from om2bms.table_generator.bms2json import match_or_build_missing_entry
 
 APP_TITLE = "OMSTOOLKIT"
 DEFAULT_OUTPUT_DIRNAME = "output"
@@ -704,8 +707,323 @@ class AnalyzerTab:
 
 
 class TableGenTab:
-    def __init__(self, parent: ttk.Frame):
-        ttk.Label(parent, text="待开发").pack()
+    def __init__(self, parent):
+        self.parent = parent
+        self.queue: Queue = Queue()
+        self.worker_thread: threading.Thread | None = None
+        self.export_rows: list[dict] = []
+
+        self.input_var = tk.StringVar()
+        self.score_json_var = tk.StringVar()
+        self.auto_append_var = tk.BooleanVar(value=False)
+
+        self._build()
+        self._process_queue()
+
+    # ===========================
+    # UI 构建
+    # ===========================
+    def _build(self):
+        main = ttk.Frame(self.parent, padding=20)
+        main.pack(fill="both", expand=True)
+
+        # ===== 输入区 =====
+        input_box = ttk.LabelFrame(main, text="输入")
+        input_box.pack(fill="x", pady=5)
+
+        ttk.Label(input_box, text="BMS 文件 / 文件夹路径").pack(anchor="w", padx=5, pady=(5, 0))
+        ttk.Entry(input_box, textvariable=self.input_var).pack(fill="x", padx=5, pady=5)
+
+        btn_row_1 = ttk.Frame(input_box)
+        btn_row_1.pack(fill="x", padx=5, pady=5)
+        ttk.Button(btn_row_1, text="选择文件", command=self._select_file).pack(side="left")
+        ttk.Button(btn_row_1, text="选择文件夹", command=self._select_folder).pack(side="left", padx=5)
+
+        ttk.Label(input_box, text="目标 score.json 路径").pack(anchor="w", padx=5, pady=(5, 0))
+        ttk.Entry(input_box, textvariable=self.score_json_var).pack(fill="x", padx=5, pady=5)
+
+        btn_row_2 = ttk.Frame(input_box)
+        btn_row_2.pack(fill="x", padx=5, pady=5)
+        ttk.Button(btn_row_2, text="选择 score.json", command=self._select_score_json).pack(side="left")
+        ttk.Checkbutton(
+            btn_row_2,
+            text="若 MD5 不存在则自动追加到 score.json",
+            variable=self.auto_append_var,
+        ).pack(side="left", padx=10)
+
+        # ===== 控制区 =====
+        control_box = ttk.LabelFrame(main, text="控制")
+        control_box.pack(fill="x", pady=5)
+
+        self.start_btn = ttk.Button(control_box, text="开始生成", command=self._start)
+        self.start_btn.pack(side="left", padx=5, pady=5)
+
+        self.progress = ttk.Progressbar(control_box, mode="indeterminate")
+        self.progress.pack(fill="x", padx=5, pady=5)
+
+        # ===== 结果表格 =====
+        table_box = ttk.LabelFrame(main, text="结果")
+        table_box.pack(fill="both", expand=True, pady=5)
+
+        style = ttk.Style()
+        style.configure("Treeview", rowheight=40)
+
+        columns = ("Chart", "Title", "Artist", "MD5", "Status", "SHA256", "Appended")
+        self.tree = ttk.Treeview(table_box, columns=columns, show="headings")
+
+        column_widths = {
+            "Chart": 180,
+            "Title": 240,
+            "Artist": 180,
+            "MD5": 220,
+            "Status": 120,
+            "SHA256": 100,
+            "Appended": 80,
+        }
+
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, anchor="center", width=column_widths.get(col, 120))
+
+        y_scrollbar = ttk.Scrollbar(table_box, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=y_scrollbar.set)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        y_scrollbar.grid(row=0, column=1, sticky="ns")
+
+        table_box.rowconfigure(0, weight=1)
+        table_box.columnconfigure(0, weight=1)
+
+        # ===== 日志 =====
+        log_box = ttk.LabelFrame(main, text="日志")
+        log_box.pack(fill="both", expand=True, pady=5)
+
+        self.log = ScrolledText(log_box, height=10)
+        self.log.pack(fill="both", expand=True)
+
+    # ===========================
+    # 文件选择
+    # ===========================
+    def _select_file(self):
+        path = filedialog.askopenfilename(
+            title="选择BMS文件",
+            filetypes=[("BMS 文件", "*.bms *.bme *.bml *.pms"), ("所有文件", "*.*")]
+        )
+        if path:
+            self.input_var.set(path)
+
+    def _select_folder(self):
+        path = filedialog.askdirectory(title="选择BMS文件夹")
+        if path:
+            self.input_var.set(path)
+
+    def _select_score_json(self):
+        path = filedialog.askopenfilename(
+            title="选择 score.json",
+            filetypes=[("JSON 文件", "*.json"), ("所有文件", "*.*")]
+        )
+        if path:
+            self.score_json_var.set(path)
+
+    # ===========================
+    # 开始执行
+    # ===========================
+    def _start(self):
+        if self.worker_thread and self.worker_thread.is_alive():
+            return
+
+        input_path = self.input_var.get().strip()
+        score_json_path = self.score_json_var.get().strip()
+
+        if not input_path:
+            messagebox.showinfo(APP_TITLE, "请选择 BMS 文件或文件夹路径")
+            return
+
+        if not score_json_path:
+            messagebox.showinfo(APP_TITLE, "请选择目标 score.json")
+            return
+
+        self.progress.start(10)
+        self.start_btn.config(state="disabled")
+        self.tree.delete(*self.tree.get_children())
+        self.export_rows.clear()
+
+        self.worker_thread = threading.Thread(
+            target=self._run,
+            args=(input_path, score_json_path, self.auto_append_var.get()),
+            daemon=True,
+        )
+        self.worker_thread.start()
+
+    # ===========================
+    # 后台执行
+    # ===========================
+    def _run(self, input_path: str, score_json_path: str, auto_append: bool):
+        try:
+            p = Path(input_path)
+
+            if not p.exists():
+                self.queue.put(("error", f"路径不存在：{p}"))
+                return
+
+            if p.is_file():
+                files = [p]
+            else:
+                files = self._collect_chart_files(p)
+
+            if not files:
+                self.queue.put(("log", "未找到任何可处理的谱面文件"))
+                self.queue.put(("done", "处理结束"))
+                return
+
+            total = len(files)
+            self.queue.put(("log", f"共找到 {total} 个谱面文件"))
+
+            for i, chart_path in enumerate(files, 1):
+                self.queue.put(("log", f"[{i}/{total}] 处理 {chart_path.name} ..."))
+                self._process_one(chart_path, score_json_path, auto_append)
+
+            self.queue.put(("done", "处理完成"))
+
+        except Exception as e:
+            self.queue.put(("error", str(e)))
+
+    # ===========================
+    # 收集谱面文件
+    # ===========================
+    def _collect_chart_files(self, folder: Path) -> list[Path]:
+        exts = {".bms", ".bme", ".bml", ".pms"}
+        files: list[Path] = []
+
+        for p in folder.rglob("*"):
+            if p.is_file() and p.suffix.lower() in exts:
+                files.append(p)
+
+        files.sort()
+        return files
+
+    # ===========================
+    # 单文件处理
+    # ===========================
+    def _process_one(self, chart_path: Path, score_json_path: str, auto_append: bool):
+        try:
+            if auto_append:
+                result = append_missing_entry_if_needed(chart_path, score_json_path)
+            else:
+                result = match_or_build_missing_entry(chart_path, score_json_path)
+
+            song_info = result.get("song_info") or {}
+            score_entry = result.get("score_entry") or {}
+            generated_entry = result.get("generated_score_entry") or {}
+
+            title = (
+                score_entry.get("title")
+                or generated_entry.get("title")
+                or song_info.get("title")
+                or chart_path.stem
+            )
+            artist = (
+                score_entry.get("artist")
+                or generated_entry.get("artist")
+                or song_info.get("artist")
+                or ""
+            )
+
+            matched = bool(result.get("matched"))
+            sha256_verified = result.get("sha256_verified")
+            appended = result.get("appended", False)
+
+            if matched:
+                if sha256_verified is True:
+                    status = "已匹配"
+                    sha256_text = "一致"
+                    self.queue.put(("log", f"匹配成功：{chart_path.name}"))
+                elif sha256_verified is False:
+                    status = "SHA256不一致"
+                    sha256_text = "不一致"
+                    self.queue.put(("log", f"SHA256 不一致：{chart_path.name}"))
+                else:
+                    status = "已匹配"
+                    sha256_text = "未提供"
+                    self.queue.put(("log", f"匹配成功，JSON 未提供 SHA256，已跳过校验：{chart_path.name}"))
+            else:
+                status = "未收录"
+                sha256_text = "-"
+                self.queue.put(("log", f"MD5 未匹配：{chart_path.name}"))
+
+            if not matched and generated_entry:
+                self.queue.put(("log_json", generated_entry))
+
+            if appended:
+                self.queue.put(("log", f"已追加到 score.json：{chart_path.name}"))
+
+            row = {
+                "Chart": chart_path.name,
+                "Title": title,
+                "Artist": artist,
+                "MD5": result.get("bms_md5", ""),
+                "Status": status,
+                "SHA256": sha256_text,
+                "Appended": "是" if appended else "否",
+            }
+
+            self.queue.put(("result", row))
+
+        except Exception as e:
+            self.queue.put(("log", f"失败: {chart_path.name}: {e}"))
+
+
+    # ===========================
+    # UI 队列更新
+    # ===========================
+    def _process_queue(self):
+        try:
+            while True:
+                kind, payload = self.queue.get_nowait()
+
+                if kind == "log":
+                    self._log(payload)
+
+                elif kind == "log_json":
+                    self._log("生成的新条目：")
+                    self._log(json.dumps(payload, ensure_ascii=False, indent=2))
+
+                elif kind == "result":
+                    self.tree.insert(
+                        "",
+                        "end",
+                        values=[
+                            payload["Chart"],
+                            payload["Title"],
+                            payload["Artist"],
+                            payload["MD5"],
+                            payload["Status"],
+                            payload["SHA256"],
+                            payload["Appended"],
+                        ],
+                    )
+                    self.export_rows.append(payload)
+
+                elif kind == "done":
+                    self._log(payload)
+                    self.progress.stop()
+                    self.start_btn.config(state="normal")
+
+                elif kind == "error":
+                    self._log("错误：" + payload)
+                    self.progress.stop()
+                    self.start_btn.config(state="normal")
+
+        except Empty:
+            pass
+
+        self.parent.after(150, self._process_queue)
+
+    # ===========================
+    # 日志输出
+    # ===========================
+    def _log(self, text: str):
+        self.log.insert("end", text + "\n")
+        self.log.see("end")
 
 
 class Om2BmsGuiApp:

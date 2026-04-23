@@ -26,6 +26,7 @@ class _TimedEvent:
 
 
 def calculate_md5(data: bytes) -> str:
+    #print("md5:"+hashlib.md5(data).hexdigest())
     return hashlib.md5(data).hexdigest()
 
 
@@ -82,6 +83,7 @@ def _parse_chart_object(chart_object: dict[str, Any]) -> ParsedBMSChart:
             song_last_ms=float(info.get("song_last_ms", 0.0)),
             total=float(info.get("total", 200.0)),
             total_notes=int(info.get("total_notes", 0)),
+            judge = int(info.get("judge", 3)),
             md5=info.get("md5"),
             sha256=info.get("sha256"),
         )
@@ -162,6 +164,7 @@ def _parse_bms_text(text: str) -> ParsedBMSChart:
         song_last_ms=extracted_notes[-1][0] if extracted_notes else 0.0,
         total=_safe_float(headers.get("total"), default=200.0),
         total_notes=len(extracted_notes),
+        judge = int(headers.get("rank", 3))
     )
     return ParsedBMSChart(timeline_master=timeline_master, song_info=song_info)
 
