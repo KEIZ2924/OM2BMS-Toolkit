@@ -42,7 +42,7 @@ ANALYSIS_MODE_VALUE_BY_LABEL = {
     label: value for value, label in ANALYSIS_MODE_LABELS.items()}
 SOURCE_EXPORT_SKIP_DIRS = {"__pycache__",
                            ".git", ".pytest_cache", ".mypy_cache"}
-SOURCE_EXPORT_SKIP_FILES = {"default_outdir.txt", "default_outdir.ini"}
+SOURCE_EXPORT_SKIP_FILES = {"default_bms_dir.txt"}
 SOURCE_EXPORT_SKIP_SUFFIXES = {".exe", ".osz", ".pyc", ".pyo", ".zip"}
 EXPORT_COLUMNS = [
     ("difficulty_table", "难度表"),
@@ -93,7 +93,7 @@ def get_app_dir() -> Path:
 
 
 APP_DIR = get_app_dir()
-CONFIG_FILE = APP_DIR / "default_outdir.txt"
+CONFIG_FILE = APP_DIR / "default_bms_dir.txt"
 
 
 def load_default_output_dir() -> str:
@@ -719,9 +719,10 @@ class TableGenTab:
         self.use_custom_level_var = tk.BooleanVar(value=False)
         self.custom_level_var = tk.StringVar()
 
-
         self._build()
+        self._load_default_bms_dir()
         self._process_queue()
+
 
     # ===========================
     # UI 构建
@@ -744,7 +745,7 @@ class TableGenTab:
 
         ttk.Label(input_box, text="目标 score.json 路径").pack(anchor="w", padx=5, pady=(5, 0))
         ttk.Entry(input_box, textvariable=self.score_json_var).pack(fill="x", padx=5, pady=5)
-
+    
         btn_row_2 = ttk.Frame(input_box)
         btn_row_2.pack(fill="x", padx=5, pady=5)
         ttk.Button(btn_row_2, text="选择 score.json", command=self._select_score_json).pack(side="left")
@@ -789,18 +790,18 @@ class TableGenTab:
         style = ttk.Style()
         style.configure("Treeview", rowheight=40)
 
-        columns = ("Chart", "Title", "Artist", "MD5", "Status", "SHA256", "Appended")
+        columns = ("Chart", "Title", "Artist", "Level", "Status", "Appended")
+
         self.tree = ttk.Treeview(table_box, columns=columns, show="headings")
 
         column_widths = {
             "Chart": 180,
             "Title": 240,
             "Artist": 180,
-            "MD5": 220,
+            "Level": 100,
             "Status": 120,
-            "SHA256": 100,
             "Appended": 80,
-        }
+        }   
 
         for col in columns:
             self.tree.heading(col, text=col)
@@ -839,9 +840,50 @@ class TableGenTab:
             self.input_var.set(path)
 
     def _select_folder(self):
-        path = filedialog.askdirectory(title="选择BMS文件夹")
+        config_path = Path("default_bms_dir.txt")
+        current_path = self.input_var.get().strip()
+
+        initialdir = current_path if current_path else str(Path.cwd())
+        if not Path(initialdir).exists():
+            initialdir = str(Path.cwd())
+
+        path = filedialog.askdirectory(
+            title="选择文件夹",
+            initialdir=initialdir,
+        )
+
         if path:
             self.input_var.set(path)
+            try:
+                config_path.write_text(path, encoding="utf-8")
+            except OSError:
+                pass
+
+
+    def _load_default_bms_dir(self):
+        config_path = Path("default_bms_dir.txt")
+        default_dir = Path.cwd()
+
+        if not config_path.exists():
+            try:
+                config_path.write_text(str(default_dir), encoding="utf-8")
+            except OSError:
+                pass
+
+        try:
+            saved_path = config_path.read_text(encoding="utf-8-sig").strip()
+        except OSError:
+            saved_path = ""
+
+        if not saved_path:
+            saved_path = str(default_dir)
+
+        p = Path(saved_path)
+        if not p.exists():
+            p = default_dir
+
+        self.input_var.set(str(p))
+
 
     def _select_score_json(self):
         config_path = Path("default_json_dir.txt")
@@ -988,12 +1030,12 @@ class TableGenTab:
 
         try:
             if auto_append:
-                    result = append_missing_entry_if_needed(
-                        chart_path,
-                        score_json_path,
-                        use_custom_level=use_custom_level,
-                        custom_level=custom_level,
-                    )
+                result = append_missing_entry_if_needed(
+                    chart_path,
+                    score_json_path,
+                    use_custom_level=use_custom_level,
+                    custom_level=custom_level,
+                )
             else:
                 result = match_or_build_missing_entry(
                     chart_path,
@@ -1018,6 +1060,13 @@ class TableGenTab:
                 or song_info.get("artist")
                 or ""
             )
+            level = (
+                score_entry.get("level")
+                or generated_entry.get("level")
+                or song_info.get("level")
+                or custom_level
+                or ""
+            )
 
             matched = bool(result.get("matched"))
             sha256_verified = result.get("sha256_verified")
@@ -1026,20 +1075,16 @@ class TableGenTab:
             if matched:
                 if sha256_verified is True:
                     status = "已匹配"
-                    sha256_text = "一致"
                     self.queue.put(("log", f"匹配成功：{chart_path.name}"))
                 elif sha256_verified is False:
                     status = "SHA256不一致"
-                    sha256_text = "不一致"
                     self.queue.put(("log", f"SHA256 不一致：{chart_path.name}"))
                 else:
                     status = "已匹配"
-                    sha256_text = "未提供"
                     self.queue.put(("log", f"匹配成功，JSON 未提供 SHA256，已跳过校验：{chart_path.name}"))
             else:
                 status = "未收录"
-                sha256_text = "-"
-                self.queue.put(("log", f"MD5 未匹配：{chart_path.name}"))
+                self.queue.put(("log", f"未收录：{chart_path.name}"))
 
             if not matched and generated_entry:
                 self.queue.put(("log_json", generated_entry))
@@ -1051,9 +1096,8 @@ class TableGenTab:
                 "Chart": chart_path.name,
                 "Title": title,
                 "Artist": artist,
-                "MD5": result.get("bms_md5", ""),
+                "Level": level,
                 "Status": status,
-                "SHA256": sha256_text,
                 "Appended": "是" if appended else "否",
             }
 
@@ -1061,6 +1105,7 @@ class TableGenTab:
 
         except Exception as e:
             self.queue.put(("log", f"失败: {chart_path.name}: {e}"))
+
 
 
     # ===========================
@@ -1086,13 +1131,13 @@ class TableGenTab:
                             payload["Chart"],
                             payload["Title"],
                             payload["Artist"],
-                            payload["MD5"],
+                            payload["Level"],
                             payload["Status"],
-                            payload["SHA256"],
                             payload["Appended"],
                         ],
                     )
                     self.export_rows.append(payload)
+
 
                 elif kind == "done":
                     self._log(payload)
