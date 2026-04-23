@@ -8,7 +8,7 @@ from typing import Any
 
 from om2bms.analysis.bms_parser import calculate_md5, calculate_sha256, parse_chart_path
 from om2bms.table_generator.score_parser import ParsedScore, ScoreEntry, parse_score_path
-
+from om2bms.analysis.service import DifficultyAnalyzerService
 
 SUPPORTED_EXTENSIONS = {".bms", ".bme", ".bml", ".pms"}
 
@@ -145,7 +145,38 @@ def match_bms_to_score(
     }
 
 
-def build_score_entry_from_bms(bms_path: str | Path) -> dict[str, Any]:
+from pathlib import Path
+from typing import Any
+
+
+def _safe_str(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    return str(value).strip()
+
+
+def _analyze_level_with_service(chart_path: Path) -> str:
+    service = DifficultyAnalyzerService()
+    try:
+        result = service.analyze_path(str(chart_path)) 
+        if result is None:
+            print("Analyze Failed")
+            return ""
+
+        return {
+            "level": _safe_str(result.label, ""),
+            "comment": _safe_str(result.display, ""),
+        }
+    except Exception:
+        return {"level": "", "comment": ""}
+
+
+def build_score_entry_from_bms(
+    bms_path: str | Path,
+    *,
+    use_custom_level: bool = False,
+    custom_level: str | int | None = None,
+) -> dict[str, Any]:
     chart_path = ensure_supported_bms_path(bms_path)
 
     hashes = read_bms_hashes(chart_path)
@@ -173,15 +204,24 @@ def build_score_entry_from_bms(bms_path: str | Path) -> dict[str, Any]:
     except (TypeError, ValueError):
         total_value = 0
 
+    if use_custom_level:
+        level = str(custom_level or "").strip()
+        comment = ""
+    else:
+        analyzed = _analyze_level_with_service(chart_path)
+        level = analyzed["level"]
+        comment = analyzed["comment"]
+
+
     return {
         "title": merged_title,
-        "level": "",
+        "level": level,
         "eval": 0,
         "artist": (song_info.artist or "").strip(),
         "url": "",
         "url_diff": "",
         "name_diff": "",
-        "comment": "",
+        "comment": comment,
         "note": total_notes,
         "total": total_value,
         "judge": judge,
@@ -190,20 +230,30 @@ def build_score_entry_from_bms(bms_path: str | Path) -> dict[str, Any]:
     }
 
 
+
 def match_or_build_missing_entry(
     bms_path: str | Path,
     score_json_path: str | Path,
+    *,
+    use_custom_level: bool = False,
+    custom_level: str = "",
 ) -> dict[str, Any]:
     result = match_bms_to_score(bms_path, score_json_path)
 
     if result["matched"]:
         return result
 
-    generated_entry = build_score_entry_from_bms(bms_path)
+    generated_entry = build_score_entry_from_bms(
+        bms_path,
+        use_custom_level=use_custom_level,
+        custom_level=custom_level,
+    )
+
     return {
         **result,
         "generated_score_entry": generated_entry,
     }
+
 
 
 def load_score_json_root(score_json_path: str | Path) -> list[dict[str, Any]]:
@@ -286,8 +336,16 @@ def emit_missing_entry_json(
 def append_missing_entry_if_needed(
     bms_path: str | Path,
     score_json_path: str | Path,
+    *,
+    use_custom_level: bool = False,
+    custom_level: str = "",
 ) -> dict[str, Any]:
-    result = match_or_build_missing_entry(bms_path, score_json_path)
+    result = match_or_build_missing_entry(
+        bms_path,
+        score_json_path,
+        use_custom_level=use_custom_level,
+        custom_level=custom_level,
+    )
 
     if result["matched"]:
         return {
@@ -296,12 +354,17 @@ def append_missing_entry_if_needed(
         }
 
     generated_entry = result["generated_score_entry"]
-    appended = append_score_entry_to_json(score_json_path, generated_entry, skip_if_md5_exists=True)
+    appended = append_score_entry_to_json(
+        score_json_path,
+        generated_entry,
+        skip_if_md5_exists=True,
+    )
 
     return {
         **result,
         "appended": appended,
     }
+
 
 
 def print_match_result_human(result: dict[str, Any]) -> None:

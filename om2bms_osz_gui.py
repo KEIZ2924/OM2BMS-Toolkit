@@ -716,6 +716,9 @@ class TableGenTab:
         self.input_var = tk.StringVar()
         self.score_json_var = tk.StringVar()
         self.auto_append_var = tk.BooleanVar(value=False)
+        self.use_custom_level_var = tk.BooleanVar(value=False)
+        self.custom_level_var = tk.StringVar()
+
 
         self._build()
         self._process_queue()
@@ -747,9 +750,27 @@ class TableGenTab:
         ttk.Button(btn_row_2, text="选择 score.json", command=self._select_score_json).pack(side="left")
         ttk.Checkbutton(
             btn_row_2,
-            text="若 MD5 不存在则自动追加到 score.json",
+            text="自动追加到难易度",
             variable=self.auto_append_var,
         ).pack(side="left", padx=10)
+        level_row = ttk.Frame(input_box)
+        level_row.pack(fill="x", padx=5, pady=5)
+
+        ttk.Checkbutton(
+            level_row,
+            text="自定义 Level（开启后不自动分析）",
+            variable=self.use_custom_level_var,
+            command=self._toggle_custom_level,
+        ).pack(side="left")
+
+        self.custom_level_entry = ttk.Entry(
+            level_row,
+            textvariable=self.custom_level_var,
+            width=20,
+            state="disabled",
+        )
+        self.custom_level_entry.pack(side="left", padx=10)
+
 
         # ===== 控制区 =====
         control_box = ttk.LabelFrame(main, text="控制")
@@ -803,6 +824,12 @@ class TableGenTab:
     # ===========================
     # 文件选择
     # ===========================
+    def _toggle_custom_level(self):
+        if self.use_custom_level_var.get():
+            self.custom_level_entry.config(state="normal")
+        else:
+            self.custom_level_entry.config(state="disabled")
+
     def _select_file(self):
         path = filedialog.askopenfilename(
             title="选择BMS文件",
@@ -849,15 +876,30 @@ class TableGenTab:
 
         self.worker_thread = threading.Thread(
             target=self._run,
-            args=(input_path, score_json_path, self.auto_append_var.get()),
+            args=(
+                input_path,
+                score_json_path,
+                self.auto_append_var.get(),
+                self.use_custom_level_var.get(),
+                self.custom_level_var.get().strip(),
+            ),
             daemon=True,
         )
+
         self.worker_thread.start()
 
     # ===========================
     # 后台执行
     # ===========================
-    def _run(self, input_path: str, score_json_path: str, auto_append: bool):
+    def _run(
+    self,
+    input_path: str,
+    score_json_path: str,
+    auto_append: bool,
+    use_custom_level: bool,
+    custom_level: str,
+    ):
+
         try:
             p = Path(input_path)
 
@@ -880,7 +922,14 @@ class TableGenTab:
 
             for i, chart_path in enumerate(files, 1):
                 self.queue.put(("log", f"[{i}/{total}] 处理 {chart_path.name} ..."))
-                self._process_one(chart_path, score_json_path, auto_append)
+                self._process_one(
+                    chart_path,
+                    score_json_path,
+                    auto_append,
+                    use_custom_level,
+                    custom_level,
+                )
+
 
             self.queue.put(("done", "处理完成"))
 
@@ -904,12 +953,30 @@ class TableGenTab:
     # ===========================
     # 单文件处理
     # ===========================
-    def _process_one(self, chart_path: Path, score_json_path: str, auto_append: bool):
+    def _process_one(
+            self,
+            chart_path: Path,
+            score_json_path: str,
+            auto_append: bool,
+            use_custom_level: bool,
+            custom_level: str,
+        ):
+
         try:
             if auto_append:
-                result = append_missing_entry_if_needed(chart_path, score_json_path)
+                    result = append_missing_entry_if_needed(
+                        chart_path,
+                        score_json_path,
+                        use_custom_level=use_custom_level,
+                        custom_level=custom_level,
+                    )
             else:
-                result = match_or_build_missing_entry(chart_path, score_json_path)
+                result = match_or_build_missing_entry(
+                    chart_path,
+                    score_json_path,
+                    use_custom_level=use_custom_level,
+                    custom_level=custom_level,
+                )
 
             song_info = result.get("song_info") or {}
             score_entry = result.get("score_entry") or {}
