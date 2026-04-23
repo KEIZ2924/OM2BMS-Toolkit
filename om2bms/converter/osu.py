@@ -197,6 +197,7 @@ class OsuBeatmapReader:
             main_bpm = max(beatmap.bpm_duration, key=beatmap.bpm_duration.get)
             first_tp = beatmap.noninherited_tp[0]
             first_tp.ms_per_beat = 60000 / main_bpm
+            first_tp.meter = 4
 
             beatmap.timing_points = [first_tp]
             beatmap.noninherited_tp = [first_tp]
