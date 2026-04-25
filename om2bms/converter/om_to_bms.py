@@ -579,9 +579,12 @@ class OsuManiaToBMSParser:
         # buffer.append("#GENRE " + genre_text)
         buffer.append("#TITLE " + title_text)
         buffer.append("#SUBTITLE " + "[" + version_text + "]")
-        buffer.append("#ARTIST " + artist_text)
+
         if creator_text:
-            buffer.append("#SUBARTIST obj:" + creator_text)
+            buffer.append(f"#ARTIST {artist_text}/obj:{creator_text}")
+        else:
+            buffer.append(f"#ARTIST {artist_text}")
+
         buffer.append(
             "#BPM " + str(int(calculate_bpm(self.beatmap.timing_points[0]))))
         buffer.append("#DIFFICULTY " + "5")
