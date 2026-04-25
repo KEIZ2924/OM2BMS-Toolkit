@@ -39,7 +39,7 @@ python -m PyInstaller `
     --specpath $projectRoot `
     --collect-data om2bms `
     --collect-all PIL `
-    (Join-Path $projectRoot "om2bms_osz_gui.py")
+    (Join-Path $projectRoot "om2bms_toolkit_dark_gui.py")
 
 Write-Host ""
 Write-Host "Build finished:"
