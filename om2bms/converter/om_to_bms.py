@@ -103,7 +103,7 @@ class OsuManiaToBMSParser:
         self.get_next_measure(
             music_start_param[0], music_start_param[1], self.beatmap)
 
-        self.write_buffer(self.create_statistics())
+        self.write_buffer(self.create_statistics())        
 
         OsuManiaToBMSParser._out_file.close()
 
@@ -291,8 +291,23 @@ class OsuManiaToBMSParser:
             measure_offset -= 1
             first_measure_time -= ms_per_measure
         if time_value_ratio == 0 and not mus_start_at_001:
-            while not self.within_2_ms(start_time, measure_offset * ms_per_measure):
-                measure_offset += 1
+            nearest_measure_offset = round(start_time / ms_per_measure)
+            snapped_time = nearest_measure_offset * ms_per_measure
+            diff = start_time - snapped_time
+            if abs(diff) <= 5:
+                print(
+                    f"[music_start_time] auto snap within 5ms: "
+                    f"start_time={start_time} -> snapped_time={snapped_time}, diff={diff}ms"
+                )
+                measure_offset = nearest_measure_offset
+            else:
+                print(
+                    f"[music_start_time] warning: start_time is too far from measure boundary, "
+                    f"start_time={start_time}, snapped_time={snapped_time}, diff={diff}ms, "
+                    f"continue without interrupt"
+                )
+                measure_offset = nearest_measure_offset
+
 
         self.initialize_mtnv()
         return (measure_offset, first_measure_time)
@@ -579,7 +594,7 @@ class OsuManiaToBMSParser:
 
         total_multiplier = OsuManiaToBMSParser._convertion_options.get(
             "TOTAL_MULTIPLIER", 0.2)
-        total_value = int(note_count * total_multiplier)
+        total_value = max(300, int(note_count * total_multiplier))
         buffer.append(f"#TOTAL {total_value}")
 
 
@@ -602,7 +617,6 @@ class OsuManiaToBMSParser:
             for e in self.beatmap.float_bpm:
                 buffer.append("#BPM" + str(e[0]) + " " + str(e[1]))
             buffer.append("")
-        
         # BGM FIELD
         buffer.append("*---------------------- EXPANSION FIELD")
         buffer.append("")

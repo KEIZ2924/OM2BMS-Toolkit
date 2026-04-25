@@ -13,7 +13,6 @@ from pathlib import Path
 from queue import Empty, Queue
 from tkinter import filedialog, messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
-
 import tkinter as tk
 import tkinter.font as tkfont
 import json
@@ -68,6 +67,579 @@ EXPORT_COLUMNS = [
     ("source_chart_name", "源谱面文件"),
     ("source_osu_path", "源谱面相对路径"),
 ]
+def apply_theme(root: tk.Tk, dark: bool = False) -> None:
+    style = ttk.Style(root)
+
+    # 选择兼容性较好的基础主题
+    for theme_name in ("clam", "vista", "xpnative", "default"):
+        if theme_name in style.theme_names():
+            style.theme_use(theme_name)
+            break
+
+    if dark:
+        colors = {
+            # ===== 基础背景 =====
+            "bg": "#1e1f22",
+            "card": "#2b2d31",
+            "card_alt": "#25272c",
+            "canvas_bg": "#1e1f22",
+
+            # ===== 文本层级 =====
+            "fg": "#c7ccd4",
+            "sub_fg": "#a9b1bb",
+            "hint_fg": "#8b95a1",
+            "disabled_fg": "#6f7682",
+
+            # ===== 边框 =====
+            "border": "#3a3f4b",
+            "border_soft": "#323743",
+
+            # ===== 输入框 / 文本 =====
+            "input_bg": "#262a31",   # 比 card 略深一点，更自然；如需完全一致可改成 #2b2d31
+            "input_fg": "#c7ccd4",
+            "text_bg": "#1b1d22",
+            "text_fg": "#c7ccd4",
+
+            # ===== 按钮 =====
+            "button_bg": "#353b45",
+            "button_hover": "#414856",
+            "button_active": "#4a5364",
+
+            # ===== 强调色 =====
+            "accent": "#5b8cff",
+            "accent_hover": "#6b97ff",
+            "accent_pressed": "#4b78e6",
+
+            # ===== 表格 =====
+            "tree_bg": "#23262d",
+            "tree_fg": "#c7ccd4",
+            "tree_head_bg": "#313743",
+            "tree_head_fg": "#c3c9d1",
+
+            # ===== 选中 =====
+            "select_bg": "#5b8cff",
+            "select_fg": "#ffffff",
+
+            # ===== 进度 / 滚动条 =====
+            "trough": "#20232a",
+        }
+    else:
+        colors = {
+            # ===== 基础背景 =====
+            "bg": "#f4f7fb",
+            "card": "#ffffff",
+            "card_alt": "#f8fafc",
+            "canvas_bg": "#f4f7fb",
+
+            # ===== 文本层级 =====
+            "fg": "#1f2328",
+            "sub_fg": "#4b5563",
+            "hint_fg": "#667085",
+            "disabled_fg": "#98a2b3",
+
+            # ===== 边框 =====
+            "border": "#d7deea",
+            "border_soft": "#e5eaf3",
+
+            # ===== 输入框 / 文本 =====
+            "input_bg": "#ffffff",
+            "input_fg": "#1f2328",
+            "text_bg": "#ffffff",
+            "text_fg": "#1f2328",
+
+            # ===== 按钮 =====
+            "button_bg": "#edf2f9",
+            "button_hover": "#e1e8f5",
+            "button_active": "#d6e0f0",
+
+            # ===== 强调色 =====
+            "accent": "#2f6feb",
+            "accent_hover": "#4380f5",
+            "accent_pressed": "#1f5ed8",
+
+            # ===== 表格 =====
+            "tree_bg": "#ffffff",
+            "tree_fg": "#1f2328",
+            "tree_head_bg": "#edf2f9",
+            "tree_head_fg": "#344054",
+
+            # ===== 选中 =====
+            "select_bg": "#2f6feb",
+            "select_fg": "#ffffff",
+
+            # ===== 进度 / 滚动条 =====
+            "trough": "#e9eef6",
+        }
+
+    bg = colors["bg"]
+    card = colors["card"]
+    fg = colors["fg"]
+    sub_fg = colors["sub_fg"]
+    hint_fg = colors["hint_fg"]
+    disabled_fg = colors["disabled_fg"]
+    border = colors["border"]
+    border_soft = colors["border_soft"]
+    input_bg = colors["input_bg"]
+    input_fg = colors["input_fg"]
+    button_bg = colors["button_bg"]
+    button_hover = colors["button_hover"]
+    button_active = colors["button_active"]
+    accent = colors["accent"]
+    accent_hover = colors["accent_hover"]
+    accent_pressed = colors["accent_pressed"]
+    tree_bg = colors["tree_bg"]
+    tree_fg = colors["tree_fg"]
+    tree_head_bg = colors["tree_head_bg"]
+    tree_head_fg = colors["tree_head_fg"]
+    trough = colors["trough"]
+    select_bg = colors["select_bg"]
+    select_fg = colors["select_fg"]
+
+    try:
+        root.configure(bg=bg)
+    except Exception:
+        pass
+
+    # =========================
+    # 字体
+    # =========================
+    try:
+        default_font = tkfont.nametofont("TkDefaultFont")
+        text_font = tkfont.nametofont("TkTextFont")
+        fixed_font = tkfont.nametofont("TkFixedFont")
+        heading_font = tkfont.nametofont("TkHeadingFont")
+        menu_font = tkfont.nametofont("TkMenuFont")
+
+        default_font.configure(family="Microsoft YaHei", size=10)
+        text_font.configure(family="Microsoft YaHei", size=10)
+        fixed_font.configure(family="Consolas", size=10)
+        heading_font.configure(family="Microsoft YaHei", size=10, weight="bold")
+        menu_font.configure(family="Microsoft YaHei", size=10)
+    except Exception:
+        pass
+
+    # =========================
+    # 基础
+    # =========================
+    style.configure(".", background=bg, foreground=fg)
+    style.configure("TFrame", background=bg)
+    style.configure("App.TFrame", background=bg)
+    style.configure("CardInner.TFrame", background=card)
+
+    # =========================
+    # Label
+    # =========================
+    style.configure("TLabel", background=bg, foreground=fg)
+
+    style.configure(
+        "Card.TLabel",
+        background=card,
+        foreground=fg,
+    )
+
+    style.configure(
+        "Title.TLabel",
+        background=bg,
+        foreground="#d2d7df" if dark else "#111827",
+        font=("Microsoft YaHei", 16, "bold"),
+    )
+
+    style.configure(
+        "Subtitle.TLabel",
+        background=bg,
+        foreground=sub_fg,
+        font=("Microsoft YaHei", 10),
+    )
+
+    style.configure(
+        "SectionLabel.TLabel",
+        background=card,
+        foreground=fg,
+        font=("Microsoft YaHei", 10, "bold"),
+    )
+
+    style.configure(
+        "Hint.TLabel",
+        background=card,
+        foreground=hint_fg,
+        font=("Microsoft YaHei", 9),
+    )
+
+    # =========================
+    # LabelFrame
+    # =========================
+    style.configure(
+        "TLabelframe",
+        background=card,
+        bordercolor=border,
+        relief="solid",
+        borderwidth=1,
+    )
+    style.configure(
+        "TLabelframe.Label",
+        background=card,
+        foreground=sub_fg,
+        font=("Microsoft YaHei", 10, "bold"),
+    )
+
+    style.configure(
+        "Card.TLabelframe",
+        background=card,
+        bordercolor=border,
+        relief="solid",
+        borderwidth=1,
+    )
+    style.configure(
+        "Card.TLabelframe.Label",
+        background=card,
+        foreground=sub_fg,
+        font=("Microsoft YaHei", 10, "bold"),
+    )
+
+    # =========================
+    # Button
+    # =========================
+    style.configure(
+        "TButton",
+        background=button_bg,
+        foreground=fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        borderwidth=1,
+        relief="solid",
+        focusthickness=0,
+        focuscolor=accent,
+        padding=(12, 7),
+    )
+    style.map(
+        "TButton",
+        background=[
+            ("disabled", border_soft),
+            ("pressed", button_active),
+            ("active", button_hover),
+        ],
+        foreground=[
+            ("disabled", disabled_fg),
+        ],
+        bordercolor=[
+            ("disabled", border),
+            ("focus", accent),
+            ("active", accent),
+        ],
+        lightcolor=[
+            ("pressed", button_active),
+            ("active", button_hover),
+        ],
+        darkcolor=[
+            ("pressed", button_active),
+            ("active", button_hover),
+        ],
+    )
+
+    style.configure(
+        "Accent.TButton",
+        background=accent,
+        foreground="#ffffff",
+        bordercolor=accent,
+        lightcolor=accent,
+        darkcolor=accent,
+        borderwidth=1,
+        relief="solid",
+        padding=(12, 7),
+    )
+    style.map(
+        "Accent.TButton",
+        background=[
+            ("disabled", border_soft),
+            ("pressed", accent_pressed),
+            ("active", accent_hover),
+        ],
+        foreground=[
+            ("disabled", "#d0d5dd"),
+        ],
+        bordercolor=[
+            ("focus", accent),
+            ("active", accent_hover),
+        ],
+    )
+
+    style.configure(
+        "Choice.TButton",
+        background=button_bg,
+        foreground=fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        borderwidth=1,
+        relief="solid",
+        padding=(14, 10),
+    )
+    style.map(
+        "Choice.TButton",
+        background=[
+            ("disabled", border_soft),
+            ("active", button_hover),
+            ("pressed", button_active),
+        ],
+        foreground=[
+            ("disabled", disabled_fg),
+        ],
+        bordercolor=[
+            ("focus", accent),
+            ("active", accent),
+        ],
+    )
+
+    style.configure(
+        "ChoiceSelected.TButton",
+        background=accent,
+        foreground="#ffffff",
+        bordercolor=accent,
+        lightcolor=accent,
+        darkcolor=accent,
+        borderwidth=1,
+        relief="solid",
+        padding=(14, 10),
+    )
+    style.map(
+        "ChoiceSelected.TButton",
+        background=[
+            ("disabled", border_soft),
+            ("active", accent_hover),
+            ("pressed", accent_pressed),
+        ],
+        foreground=[
+            ("disabled", "#d0d5dd"),
+        ],
+        bordercolor=[
+            ("focus", accent),
+            ("active", accent_hover),
+        ],
+    )
+
+    # =========================
+    # Entry / Combobox / Spinbox
+    # =========================
+    style.configure(
+        "TEntry",
+        fieldbackground=input_bg,
+        background=input_bg,
+        foreground=input_fg,
+        insertcolor=input_fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        borderwidth=1,
+        relief="solid",
+        padding=6,
+    )
+    style.map(
+        "TEntry",
+        bordercolor=[("focus", accent)],
+        lightcolor=[("focus", accent)],
+        darkcolor=[("focus", accent)],
+    )
+
+    style.configure(
+        "TCombobox",
+        fieldbackground=input_bg,
+        background=input_bg,
+        foreground=input_fg,
+        arrowcolor=fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        borderwidth=1,
+        relief="solid",
+        padding=4,
+    )
+    style.map(
+        "TCombobox",
+        fieldbackground=[("readonly", input_bg)],
+        bordercolor=[("focus", accent)],
+        lightcolor=[("focus", accent)],
+        darkcolor=[("focus", accent)],
+    )
+
+    style.configure(
+        "TSpinbox",
+        fieldbackground=input_bg,
+        background=input_bg,
+        foreground=input_fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        arrowsize=12,
+        borderwidth=1,
+        relief="solid",
+        padding=4,
+    )
+
+    # =========================
+    # Check / Radio
+    # =========================
+    style.configure(
+        "TCheckbutton",
+        background=card,
+        foreground=fg,
+        font=("Microsoft YaHei", 10),
+        indicatorcolor=input_bg,
+        indicatormargin=6,
+        padding=(2, 2),
+    )
+    style.map(
+        "TCheckbutton",
+        foreground=[
+            ("disabled", disabled_fg),
+            ("active", fg),
+            ("selected", fg),
+        ],
+        background=[
+            ("active", card),
+        ],
+        indicatorcolor=[
+            ("selected", accent),
+            ("active", input_bg),
+            ("!selected", input_bg),
+        ],
+    )
+
+    style.configure(
+        "TRadiobutton",
+        background=card,
+        foreground=fg,
+        font=("Microsoft YaHei", 10),
+        indicatorcolor=input_bg,
+        indicatormargin=6,
+        padding=(2, 2),
+    )
+    style.map(
+        "TRadiobutton",
+        foreground=[
+            ("disabled", disabled_fg),
+            ("active", fg),
+            ("selected", fg),
+        ],
+        background=[
+            ("active", card),
+        ],
+        indicatorcolor=[
+            ("selected", accent),
+            ("active", input_bg),
+            ("!selected", input_bg),
+        ],
+    )
+
+    # =========================
+    # Notebook
+    # =========================
+    style.configure(
+        "TNotebook",
+        background=bg,
+        borderwidth=0,
+        tabmargins=(0, 0, 0, 0),
+    )
+    style.configure(
+        "TNotebook.Tab",
+        background=button_bg,
+        foreground=sub_fg if dark else fg,
+        padding=(16, 9),
+        borderwidth=0,
+    )
+    style.map(
+        "TNotebook.Tab",
+        background=[
+            ("selected", card),
+            ("active", button_hover),
+        ],
+        foreground=[
+            ("selected", fg),
+            ("active", fg),
+        ],
+    )
+
+    # =========================
+    # Progressbar
+    # =========================
+    style.configure(
+        "TProgressbar",
+        troughcolor=trough,
+        background=accent,
+        lightcolor=accent,
+        darkcolor=accent,
+        bordercolor=border,
+        thickness=10,
+    )
+
+    # =========================
+    # Scrollbar
+    # =========================
+    style.configure(
+        "TScrollbar",
+        background=button_bg,
+        troughcolor=bg,
+        bordercolor=border_soft,
+        arrowcolor=fg,
+        relief="flat",
+    )
+    style.map(
+        "TScrollbar",
+        background=[
+            ("active", button_hover),
+            ("pressed", button_active),
+        ]
+    )
+
+    # =========================
+    # Treeview
+    # =========================
+    style.configure(
+        "Treeview",
+        background=tree_bg,
+        fieldbackground=tree_bg,
+        foreground=tree_fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        rowheight=32,
+        relief="solid",
+    )
+    style.map(
+        "Treeview",
+        background=[("selected", select_bg)],
+        foreground=[("selected", select_fg)],
+    )
+
+    style.configure(
+        "Treeview.Heading",
+        background=tree_head_bg,
+        foreground=tree_head_fg,
+        bordercolor=border,
+        lightcolor=border,
+        darkcolor=border,
+        relief="solid",
+        borderwidth=1,
+        font=("Microsoft YaHei", 10, "bold"),
+    )
+    style.map(
+        "Treeview.Heading",
+        background=[("active", button_hover)],
+        foreground=[("active", fg)],
+    )
+
+    # =========================
+    # 其他
+    # =========================
+    style.configure("TSeparator", background=border_soft)
+    style.configure("TSizegrip", background=bg)
+    style.configure("TPanedwindow", background=bg)
+    style.configure("Sash", background=border)
+
+    # 给外部 Text / Canvas / 其他自定义控件使用
+    root._theme_colors = colors
+
+
 
 
 def enable_high_dpi() -> None:
@@ -111,36 +683,8 @@ def save_default_output_dir(path: str) -> None:
 
 
 def configure_ui(root: tk.Tk) -> None:
-    style = ttk.Style(root)
-    for theme_name in ("vista", "xpnative", "clam"):
-        if theme_name in style.theme_names():
-            style.theme_use(theme_name)
-            break
+    apply_theme(root, dark=False)
 
-    default_font = tkfont.nametofont("TkDefaultFont")
-    text_font = tkfont.nametofont("TkTextFont")
-    fixed_font = tkfont.nametofont("TkFixedFont")
-    heading_font = tkfont.nametofont("TkHeadingFont")
-
-    default_font.configure(family="Segoe UI", size=10)
-    text_font.configure(family="Segoe UI", size=10)
-    fixed_font.configure(family="Consolas", size=10)
-    heading_font.configure(family="Segoe UI Semibold", size=11)
-
-    root.option_add("*Font", default_font)
-    root.option_add("*TCombobox*Listbox.font", "Segoe UI 10")
-
-    style.configure("App.TFrame", background="#f3f6fb")
-    style.configure("Card.TLabelframe", padding=14)
-    style.configure("Card.TLabelframe.Label", font=("Segoe UI Semibold", 11))
-    style.configure("Title.TLabel", background="#f3f6fb",
-                    foreground="#10233d", font=("Segoe UI Semibold", 21))
-    style.configure("Subtitle.TLabel", background="#f3f6fb",
-                    foreground="#51627c", font=("Segoe UI", 10))
-    style.configure("Hint.TLabel", foreground="#5c6b82", font=("Segoe UI", 9))
-    style.configure("Primary.TButton", padding=(
-        18, 10), font=("Segoe UI Semibold", 11))
-    style.configure("Secondary.TButton", padding=(12, 8))
 
 
 def rename_zip_to_osz(path: str) -> int:
@@ -174,22 +718,80 @@ class ConverterTab:
         self.parent.update_idletasks()
         self._build()
 
+    def _set_choice(self, var, value, group_name: str) -> None:
+        var.set(value)
+        self._refresh_choice_group(group_name)
+
+        if group_name in ("mode", "analysis_mode"):
+            self.app._sync_mode_widgets()
+
+    def _refresh_choice_group(self, group_name: str) -> None:
+        group = getattr(self, "_choice_groups", {}).get(group_name)
+        if not group:
+            return
+
+        var = group["var"]
+        buttons = group["buttons"]
+        current = var.get()
+
+        for value, btn in buttons.items():
+            btn.configure(
+                style="ChoiceSelected.TButton" if value == current else "Choice.TButton"
+            )
+
+    def _register_choice_group(self, group_name: str, var, buttons: dict) -> None:
+        if not hasattr(self, "_choice_groups"):
+            self._choice_groups = {}
+
+        self._choice_groups[group_name] = {
+            "var": var,
+            "buttons": buttons,
+        }
+        self._refresh_choice_group(group_name)
+    def _toggle_boolean_choice(self, var, group_name: str) -> None:
+        var.set(not bool(var.get()))
+        self._refresh_boolean_group(group_name)
+
+    def _refresh_boolean_group(self, group_name: str) -> None:
+        group = getattr(self, "_boolean_choice_groups", {}).get(group_name)
+        if not group:
+            return
+
+        var = group["var"]
+        button = group["button"]
+
+        button.configure(
+            style="ChoiceSelected.TButton" if bool(var.get()) else "Choice.TButton"
+        )
+
+    def _register_boolean_group(self, group_name: str, var, button) -> None:
+        if not hasattr(self, "_boolean_choice_groups"):
+            self._boolean_choice_groups = {}
+
+        self._boolean_choice_groups[group_name] = {
+            "var": var,
+            "button": button,
+        }
+        self._refresh_boolean_group(group_name)
+
+
     def _build(self):
         app = self.app
 
         # ================= 根容器 =================
-        main = ttk.Frame(self.parent, style="App.TFrame", padding=20)
+        main = ttk.Frame(self.parent, style="App.TFrame", padding=12)
         main.grid(row=0, column=0, sticky="nsew")
 
         self.parent.columnconfigure(0, weight=1)
         self.parent.rowconfigure(0, weight=1)
 
-        main.columnconfigure(0, weight=1)
+        main.columnconfigure(0, weight=3, minsize=360)
+        main.columnconfigure(1, weight=5, minsize=420)
         main.rowconfigure(1, weight=1)
 
         # ================= HEADER =================
         header = ttk.Frame(main, style="App.TFrame")
-        header.grid(row=0, column=0, sticky="ew")
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
         header.columnconfigure(0, weight=1)
 
         ttk.Label(header, text=APP_TITLE, style="Title.TLabel").grid(
@@ -198,150 +800,86 @@ class ConverterTab:
 
         ttk.Label(
             header,
-            text="现有转换流程保持不变；难度分析作为转换后的后处理步骤加入，支持关闭、单个目标和全部输出三种模式。",
+            text="支持 .osz / .zip 输入与 .osz 批量处理，并附带难度分析功能。",
             style="Subtitle.TLabel",
-            wraplength=980,
+            wraplength=1400,
             justify="left",
-        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
 
-        # ================= 左右分割 =================
-        content = ttk.PanedWindow(main, orient=tk.HORIZONTAL)
-        content.grid(row=1, column=0, sticky="nsew", pady=(18, 14))
+        # ================= 左侧：可滚动配置区 =================
+        left_outer = ttk.Frame(main, style="App.TFrame")
+        left_outer.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
+        left_outer.columnconfigure(0, weight=1)
+        left_outer.rowconfigure(0, weight=1)
 
-        # ================= 左侧 =================
-        left = ttk.Frame(content, style="App.TFrame")
+        left_canvas = tk.Canvas(left_outer, highlightthickness=0, bd=0)
+        left_canvas.grid(row=0, column=0, sticky="nsew")
+
+        left_scrollbar = ttk.Scrollbar(
+            left_outer, orient="vertical", command=left_canvas.yview
+        )
+        left_scrollbar.grid(row=0, column=1, sticky="ns")
+
+        left_canvas.configure(yscrollcommand=left_scrollbar.set)
+
+        left = ttk.Frame(left_canvas, style="App.TFrame")
         left.columnconfigure(0, weight=1)
-        left.rowconfigure(2, weight=1)
 
-        content.add(left, weight=3)
+        left_window = left_canvas.create_window((0, 0), window=left, anchor="nw")
 
-        # ================= 右侧 =================
-        right_paned = ttk.PanedWindow(content, orient=tk.VERTICAL)
-        content.add(right_paned, weight=7)
+        def _update_left_scrollregion(event=None):
+            left_canvas.configure(scrollregion=left_canvas.bbox("all"))
 
-        # ================= 右上 =================
-        right_top = ttk.Frame(right_paned, style="App.TFrame")
-        right_top.columnconfigure(0, weight=1)
-        right_paned.add(right_top, weight=4)
+        def _resize_left_inner(event):
+            left_canvas.itemconfigure(left_window, width=event.width)
 
-        # ================= 右下 =================
-        right_bottom = ttk.Frame(right_paned, style="App.TFrame")
-        right_bottom.columnconfigure(0, weight=1)
-        right_bottom.rowconfigure(0, weight=1)
-        right_paned.add(right_bottom, weight=3)
+        left.bind("<Configure>", _update_left_scrollregion)
+        left_canvas.bind("<Configure>", _resize_left_inner)
 
-        # ================= 左侧内容 =================
+        def _on_mousewheel(event):
+            left_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        left_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
         # ===== 转换模式 =====
-        mode_box = ttk.LabelFrame(left, text="转换模式", style="Card.TLabelframe")
-        mode_box.grid(row=0, column=0, sticky="ew", padx=10, pady=(0, 8))
+        mode_box = ttk.LabelFrame(
+            left, text="转换模式", style="Card.TLabelframe", padding=10
+        )
+        mode_box.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        mode_box.columnconfigure(0, weight=1)
 
-        for i, (v, t) in enumerate([
+        mode_items = [
             ("single", "转换单个压缩包"),
             ("batch", "批量转换文件夹中的 .osz"),
             ("zip", "把 .zip 改名成 .osz"),
-        ]):
-            btn = ttk.Radiobutton(
+        ]
+        self.mode_choice_buttons = {}
+
+        for i, (v, t) in enumerate(mode_items):
+            btn = ttk.Button(
                 mode_box,
                 text=t,
-                variable=app.mode_var,
-                value=v,
-                command=app._sync_mode_widgets,
+                style="Choice.TButton",
+                command=lambda value=v: self._set_choice(app.mode_var, value, "mode"),
             )
-            btn.grid(row=i, column=0, sticky="w", pady=2)
-            app.mode_buttons.append(btn)
+            btn.grid(row=i, column=0, sticky="ew", pady=4)
+            self.mode_choice_buttons[v] = btn
+
+        self._register_choice_group("mode", app.mode_var, self.mode_choice_buttons)
 
         ttk.Label(
             mode_box,
             textvariable=app.mode_hint_var,
             style="Hint.TLabel",
-            wraplength=280,
-        ).grid(row=3, column=0, sticky="w")
+            wraplength=520,
+            justify="left",
+        ).grid(row=3, column=0, sticky="ew", pady=(8, 0))
 
-       # ===== 转换选项 =====
-        option_box = ttk.LabelFrame(left, text="转换选项", style="Card.TLabelframe")
-        option_box.grid(row=1, column=0, sticky="ew", padx=10, pady=8)
-        option_box.columnconfigure(0, weight=1)
-        option_box.columnconfigure(1, weight=1)
-        option_box.columnconfigure(2, weight=1)  # ✅ 为T/N新增一列
-        hitsound_check = ttk.Checkbutton(
-            option_box, text="包含击打音效", variable=app.hitsound_var
+        # ===== 文件路径 =====
+        path_box = ttk.LabelFrame(
+            left, text="文件路径", style="Card.TLabelframe", padding=10
         )
-        hitsound_check.grid(row=0, column=0, sticky="w")
-        app.hitsound_var.set(False)
-
-        bg_check = ttk.Checkbutton(option_box, text="处理背景图片", variable=app.bg_var)
-        bg_check.grid(row=0, column=1, sticky="w")
-
-        # ✅ 修改标签行，增加 T/N
-        ttk.Label(option_box, text="偏移量(ms)").grid(row=1, column=0, sticky="w")
-        ttk.Label(option_box, text="判定难度").grid(row=1, column=1, sticky="w")
-        ttk.Label(option_box, text="T/N").grid(row=1, column=2, sticky="w")
-
-        # 偏移量输入框
-        app.offset_entry = ttk.Entry(option_box, textvariable=app.offset_var)
-        app.offset_entry.grid(row=2, column=0, sticky="ew")
-
-        # 判定难度按钮区域（原样保留）
-        judge_frame = ttk.Frame(option_box)
-        judge_frame.grid(row=2, column=1, sticky="ew")
-
-        for i, label in enumerate(JUDGE_OPTIONS.keys()):
-            btn = ttk.Radiobutton(
-                judge_frame,
-                text=label,
-                variable=app.judge_var,
-                value=label,
-            )
-            btn.grid(row=i // 2, column=i % 2, sticky="w")
-            app.judge_buttons.append(btn)
-
-        # ✅ 新增 T/N 输入框
-        app.tn_var = tk.DoubleVar(value=0.2)  # 默认值 0.2
-        app.tn_entry = ttk.Entry(option_box, textvariable=app.tn_var, width=8)
-        app.tn_entry.grid(row=2, column=2, sticky="ew")
-
-
-        for i, label in enumerate(JUDGE_OPTIONS.keys()):
-            btn = ttk.Radiobutton(
-                judge_frame,
-                text=label,
-                variable=app.judge_var,
-                value=label,
-            )
-            btn.grid(row=i // 2, column=i % 2, sticky="w")
-            app.judge_buttons.append(btn)
-
-        # ===== 难度分析 =====
-        analysis_box = ttk.LabelFrame(left, text="难度分析", style="Card.TLabelframe")
-        analysis_box.grid(row=2, column=0, sticky="ew", padx=10, pady=8)
-        analysis_box.columnconfigure(1, weight=1)
-
-        ttk.Label(analysis_box, text="分析模式").grid(row=0, column=0)
-        ttk.Label(analysis_box, text="目标").grid(row=0, column=1)
-
-        frame = ttk.Frame(analysis_box)
-        frame.grid(row=1, column=0, sticky="ew")
-        app.analysis_mode_var = tk.StringVar(value=DifficultyAnalysisMode.ALL.value)
-
-        for i, (v, t) in enumerate(ANALYSIS_MODE_LABELS.items()):
-            btn = ttk.Radiobutton(
-                frame,
-                text=t,
-                variable=app.analysis_mode_var,
-                value=v,
-                command=app._sync_mode_widgets,
-            )
-            btn.grid(row=i, column=0, sticky="w")
-            app.analysis_mode_buttons.append(btn)
-
-        app.analysis_target_entry = ttk.Entry(
-            analysis_box, textvariable=app.analysis_target_var
-        )
-        app.analysis_target_entry.grid(row=1, column=1, sticky="ew")
-
-        # ================= 右上：路径 =================
-        path_box = ttk.LabelFrame(right_top, text="文件路径", style="Card.TLabelframe")
-        path_box.grid(row=0, column=0, sticky="ew", padx=10, pady=5)
+        path_box.grid(row=1, column=0, sticky="ew", pady=8)
         path_box.columnconfigure(0, weight=1)
 
         ttk.Label(path_box, textvariable=app.input_label_var).grid(
@@ -349,44 +887,207 @@ class ConverterTab:
         )
 
         input_entry = ttk.Entry(path_box, textvariable=app.input_var)
-        input_entry.grid(row=1, column=0, sticky="ew", pady=2)
+        input_entry.grid(row=1, column=0, sticky="ew", pady=(4, 4))
 
-        btn_row = ttk.Frame(path_box)
-        btn_row.grid(row=2, column=0, sticky="w", pady=2)
+        input_btn_row = ttk.Frame(path_box, style="App.TFrame")
+        input_btn_row.grid(row=2, column=0, sticky="w", pady=(0, 6))
 
         app.input_file_button = ttk.Button(
-            btn_row, text="选择文件", command=app._select_input_file
+            input_btn_row, text="选择文件", command=app._select_input_file
         )
-        app.input_file_button.grid(row=0, column=0)
+        app.input_file_button.grid(row=0, column=0, padx=(0, 6))
 
         app.input_folder_button = ttk.Button(
-            btn_row, text="选择文件夹", command=app._select_input_folder
+            input_btn_row, text="选择文件夹", command=app._select_input_folder
         )
         app.input_folder_button.grid(row=0, column=1)
 
-        app.output_frame = ttk.Frame(path_box)
-        app.output_frame.grid(row=3, column=0, sticky="ew", pady=4)
+        app.output_frame = ttk.Frame(path_box, style="App.TFrame")
+        app.output_frame.grid(row=3, column=0, sticky="ew")
         app.output_frame.columnconfigure(0, weight=1)
 
         ttk.Label(app.output_frame, text="输出文件夹").grid(row=0, column=0, sticky="w")
 
         output_entry = ttk.Entry(app.output_frame, textvariable=app.output_var)
-        output_entry.grid(row=1, column=0, sticky="ew", pady=2)
+        output_entry.grid(row=1, column=0, sticky="ew", pady=(4, 4))
 
         app.output_button = ttk.Button(
             app.output_frame, text="选择输出文件夹", command=app._select_output
         )
         app.output_button.grid(row=2, column=0, sticky="w")
 
+        # ===== 转换选项 =====
+        option_box = ttk.LabelFrame(
+            left, text="转换选项", style="Card.TLabelframe", padding=10
+        )
+        option_box.grid(row=2, column=0, sticky="ew", pady=8)
+        option_box.columnconfigure(0, weight=2, minsize=150)
+        option_box.columnconfigure(1, weight=3, minsize=220)
+        option_box.columnconfigure(2, weight=1, minsize=90)
+
+        ttk.Label(option_box, text="音效", style="SectionLabel.TLabel").grid(
+            row=0, column=0, sticky="w", pady=(0, 4)
+        )
+        ttk.Label(option_box, text="背景 / 判定", style="SectionLabel.TLabel").grid(
+            row=0, column=1, sticky="w", pady=(0, 4)
+        )
+        ttk.Label(option_box, text="参数", style="SectionLabel.TLabel").grid(
+            row=0, column=2, sticky="w", pady=(0, 4)
+        )
+        app.hitsound_var.set(False)
+
+        hitsound_check = ttk.Button(
+            option_box,
+            text="包含击打音效",
+            style="Choice.TButton",
+            command=lambda: self._toggle_boolean_choice(app.hitsound_var, "hitsound"),
+        )
+        hitsound_check.grid(row=1, column=0, sticky="ew", pady=(0, 10), padx=(0, 10))
+
+        bg_check = ttk.Button(
+            option_box,
+            text="处理背景图片",
+            style="Choice.TButton",
+            command=lambda: self._toggle_boolean_choice(app.bg_var, "bg"),
+        )
+        bg_check.grid(row=1, column=1, sticky="ew", pady=(0, 10), padx=(0, 10))
+
+        self._register_boolean_group("hitsound", app.hitsound_var, hitsound_check)
+        self._register_boolean_group("bg", app.bg_var, bg_check)
+
+
+        ttk.Label(option_box, text="偏移量 (ms)", style="SectionLabel.TLabel").grid(
+            row=2, column=0, sticky="w"
+        )
+        ttk.Label(
+            option_box,
+            text="正值表示整体延后，负值表示整体提前。",
+            style="Hint.TLabel",
+            wraplength=220,
+            justify="left",
+        ).grid(row=3, column=0, sticky="ew", pady=(2, 6))
+
+        ttk.Label(option_box, text="判定难度", style="SectionLabel.TLabel").grid(
+            row=2, column=1, sticky="w"
+        )
+        ttk.Label(
+            option_box,
+            text="选择转换后使用的默认判定级别。",
+            style="Hint.TLabel",
+            wraplength=500,
+            justify="left",
+        ).grid(row=3, column=1, sticky="ew", pady=(2, 6))
+
+        ttk.Label(option_box, text="T/N", style="SectionLabel.TLabel").grid(
+            row=2, column=2, sticky="w"
+        )
+        ttk.Label(
+            option_box,
+            text="默认T/N=0.2 TOTAL>=300",
+            style="Hint.TLabel",
+            wraplength=220,
+            justify="left",
+        ).grid(row=3, column=2, sticky="ew", pady=(2, 6))
+
+        app.offset_entry = ttk.Entry(option_box, textvariable=app.offset_var)
+        app.offset_entry.grid(row=4, column=0, sticky="ew", padx=(0, 10), pady=(2, 0))
+
+        judge_frame = ttk.Frame(option_box, style="App.TFrame")
+        judge_frame.grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=(2, 0))
+        judge_frame.columnconfigure(0, weight=1)
+        judge_frame.columnconfigure(1, weight=1)
+
+        self.judge_choice_buttons = {}
+        for i, label in enumerate(JUDGE_OPTIONS.keys()):
+            btn = ttk.Button(
+                judge_frame,
+                text=label,
+                style="Choice.TButton",
+                command=lambda value=label: self._set_choice(app.judge_var, value, "judge"),
+            )
+            btn.grid(row=i // 2, column=i % 2, sticky="ew", padx=4, pady=4)
+            self.judge_choice_buttons[label] = btn
+
+        self._register_choice_group("judge", app.judge_var, self.judge_choice_buttons)
+
+        app.tn_var = tk.DoubleVar(value=0.2)
+        app.tn_entry = ttk.Entry(option_box, textvariable=app.tn_var, width=8)
+        app.tn_entry.grid(row=4, column=2, sticky="ew", pady=(2, 0))
+
+        # ===== 难度分析 =====
+        analysis_box = ttk.LabelFrame(
+            left, text="难度分析", style="Card.TLabelframe", padding=10
+        )
+        analysis_box.grid(row=3, column=0, sticky="ew", pady=8)
+        analysis_box.columnconfigure(0, weight=2, minsize=180)
+        analysis_box.columnconfigure(1, weight=2, minsize=180)
+
+        ttk.Label(analysis_box, text="分析模式", style="SectionLabel.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(analysis_box, text="目标", style="SectionLabel.TLabel").grid(
+            row=0, column=1, sticky="w"
+        )
+
+        ttk.Label(
+            analysis_box,
+            text="选择是否启用难度分析功能。",
+            style="Hint.TLabel",
+            wraplength=320,
+            justify="left",
+        ).grid(row=1, column=0, sticky="ew", pady=(2, 6))
+
+        ttk.Label(
+            analysis_box,
+            text="可填写目标等级、目标值或相关参数。",
+            style="Hint.TLabel",
+            wraplength=440,
+            justify="left",
+        ).grid(row=1, column=1, sticky="ew", pady=(2, 6))
+
+        analysis_frame = ttk.Frame(analysis_box, style="App.TFrame")
+        analysis_frame.grid(row=2, column=0, sticky="ew", pady=(0, 0))
+        analysis_frame.columnconfigure(0, weight=1)
+
+        app.analysis_mode_var = tk.StringVar(value=DifficultyAnalysisMode.OFF.value)
+
+        self.analysis_choice_buttons = {}
+        for i, (v, t) in enumerate(ANALYSIS_MODE_LABELS.items()):
+            btn = ttk.Button(
+                analysis_frame,
+                text=t,
+                style="Choice.TButton",
+                command=lambda value=v: self._set_choice(
+                    app.analysis_mode_var, value, "analysis_mode"
+                ),
+            )
+            btn.grid(row=i, column=0, sticky="ew", pady=4)
+            self.analysis_choice_buttons[v] = btn
+
+        self._register_choice_group(
+            "analysis_mode",
+            app.analysis_mode_var,
+            self.analysis_choice_buttons,
+        )
+
+        app.analysis_target_entry = ttk.Entry(
+            analysis_box, textvariable=app.analysis_target_var
+        )
+        app.analysis_target_entry.grid(
+            row=2, column=1, sticky="ew", padx=(8, 0), pady=(0, 0)
+        )
+
         # ===== 操作区 =====
-        action_box = ttk.LabelFrame(right_top, text="开始执行")
-        action_box.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+        action_box = ttk.LabelFrame(
+            left, text="开始执行", style="Card.TLabelframe", padding=10
+        )
+        action_box.grid(row=4, column=0, sticky="ew", pady=(8, 8))
 
         for i in range(4):
             action_box.columnconfigure(i, weight=1)
 
         app.start_button = ttk.Button(
-            action_box, text="开始执行", command=app._start
+            action_box, text="开始执行", command=app._start, style="Accent.TButton"
         )
         app.start_button.grid(row=0, column=0, sticky="ew")
 
@@ -411,12 +1112,16 @@ class ConverterTab:
         ).grid(row=0, column=3, sticky="ew", padx=5)
 
         app.progress_bar = ttk.Progressbar(action_box, mode="indeterminate")
-        app.progress_bar.grid(row=1, column=0, columnspan=4, sticky="ew", pady=5)
+        app.progress_bar.grid(row=1, column=0, columnspan=4, sticky="ew", pady=(8, 0))
 
-        # ================= 日志 =================
-        log_box = ttk.LabelFrame(right_bottom, text="运行日志")
-        log_box.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
+        # ================= 右侧日志区 =================
+        right = ttk.Frame(main, style="App.TFrame")
+        right.grid(row=1, column=1, sticky="nsew")
+        right.columnconfigure(0, weight=1)
+        right.rowconfigure(0, weight=1)
 
+        log_box = ttk.LabelFrame(right, text="运行日志", style="Card.TLabelframe", padding=8)
+        log_box.grid(row=0, column=0, sticky="nsew")
         log_box.columnconfigure(0, weight=1)
         log_box.rowconfigure(0, weight=1)
 
@@ -429,16 +1134,11 @@ class ConverterTab:
         )
         app.log_box.grid(row=0, column=0, sticky="nsew")
 
-        # ================= 初始分割位置（关键） =================
-        def _init_pane():
-            total = content.winfo_width()
-            content.sashpos(0, int(total * 0.45)) #ui初始左右分割比例
-            total_h = right_paned.winfo_height()
-            right_paned.sashpos(0, int(total_h * 0.6)) 
-
-        self.parent.after(100, _init_pane)
-
         # ================= 控件注册 =================
+        app.mode_buttons = list(self.mode_choice_buttons.values())
+        app.judge_buttons = list(self.judge_choice_buttons.values())
+        app.analysis_mode_buttons = list(self.analysis_choice_buttons.values())
+
         app.controls_to_toggle = [
             *app.mode_buttons,
             *app.judge_buttons,
@@ -448,14 +1148,20 @@ class ConverterTab:
             input_entry,
             output_entry,
             app.offset_entry,
+            app.tn_entry,
             app.input_file_button,
             app.input_folder_button,
             app.output_button,
             app.analysis_target_entry,
         ]
 
+        app.register_theme_canvas(left_canvas)
+        app.register_theme_widget(app.log_box)
+
         app._append_log("Get Ready.")
         app._sync_export_button()
+        app._sync_mode_widgets()
+
 
 class AnalyzerTab:
     def __init__(self, app, parent):
@@ -472,46 +1178,65 @@ class AnalyzerTab:
     # 构建界面
     # ===========================
     def _build(self):
-        main = ttk.Frame(self.parent, padding=20)
-        main.pack(fill="both", expand=True)
+        app = self.app
+
+        main = ttk.Frame(self.parent, style="App.TFrame", padding=12)
+        main.grid(row=0, column=0, sticky="nsew")
+
+        self.parent.columnconfigure(0, weight=1)
+        self.parent.rowconfigure(0, weight=1)
+
+        main.columnconfigure(0, weight=1)
+        main.rowconfigure(2, weight=1)
+        main.rowconfigure(3, weight=1)
 
         # ===== 输入区 =====
-        input_box = ttk.LabelFrame(main, text="输入")
-        input_box.pack(fill="x", pady=5)
+        input_box = ttk.LabelFrame(main, text="输入", style="Card.TLabelframe", padding=10)
+        input_box.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        input_box.columnconfigure(0, weight=1)
 
         self.input_var = tk.StringVar()
-        ttk.Entry(input_box, textvariable=self.input_var).pack(
-            fill="x", padx=5, pady=5
-        )
 
-        btn_row = ttk.Frame(input_box)
-        btn_row.pack(fill="x", padx=5, pady=5)
-        ttk.Button(btn_row, text="选择文件", command=self._select_file).pack(side="left")
-        ttk.Button(btn_row, text="选择文件夹",
-                   command=self._select_folder).pack(side="left", padx=5)
+        input_entry = ttk.Entry(input_box, textvariable=self.input_var)
+        input_entry.grid(row=0, column=0, sticky="ew", pady=(0, 6))
+
+        btn_row = ttk.Frame(input_box, style="App.TFrame")
+        btn_row.grid(row=1, column=0, sticky="w")
+
+        self.select_file_btn = ttk.Button(
+            btn_row, text="选择文件", command=self._select_file
+        )
+        self.select_file_btn.grid(row=0, column=0)
+
+        self.select_folder_btn = ttk.Button(
+            btn_row, text="选择文件夹", command=self._select_folder
+        )
+        self.select_folder_btn.grid(row=0, column=1, padx=(6, 0))
 
         # ===== 控制区 =====
-        control_box = ttk.LabelFrame(main, text="控制")
-        control_box.pack(fill="x", pady=5)
+        control_box = ttk.LabelFrame(main, text="控制", style="Card.TLabelframe", padding=10)
+        control_box.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        control_box.columnconfigure(2, weight=1)
 
-        self.start_btn = ttk.Button(control_box, text="开始分析", command=self._start)
-        self.start_btn.pack(side="left", padx=5, pady=5)
+        self.start_btn = ttk.Button(
+            control_box, text="开始分析", command=self._start
+        )
+        self.start_btn.grid(row=0, column=0, padx=(0, 6), pady=(0, 6), sticky="w")
 
-        # ✅ 导出按钮（使用相同逻辑）
         self.export_btn = ttk.Button(
-            control_box, text="导出分析表格", command=self._export_results_table)
-        self.export_btn.pack(side="left", padx=5)
+            control_box, text="导出分析表格", command=self._export_results_table
+        )
+        self.export_btn.grid(row=0, column=1, padx=(0, 6), pady=(0, 6), sticky="w")
 
         self.progress = ttk.Progressbar(control_box, mode="indeterminate")
-        self.progress.pack(fill="x", padx=5, pady=5)
+        self.progress.grid(row=1, column=0, columnspan=3, sticky="ew")
 
-       # ===== 结果表格 =====
-        table_box = ttk.LabelFrame(main, text="结果")
-        table_box.pack(fill="both", expand=True, pady=5)
+        # ===== 结果表格 =====
+        table_box = ttk.LabelFrame(main, text="结果", style="Card.TLabelframe", padding=10)
+        table_box.grid(row=2, column=0, sticky="nsew", pady=(0, 8))
+        table_box.columnconfigure(0, weight=1)
+        table_box.rowconfigure(0, weight=1)
 
-        style = ttk.Style()
-        style.configure("Treeview", rowheight=40)
-        # style.configure("Treeview.Heading", font=("Microsoft YaHei", 10, "bold"))
         columns = ("Chart", "Difficulty", "Level")
         self.tree = ttk.Treeview(table_box, columns=columns, show="headings")
 
@@ -521,18 +1246,22 @@ class AnalyzerTab:
 
         y_scrollbar = ttk.Scrollbar(table_box, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=y_scrollbar.set)
+
         self.tree.grid(row=0, column=0, sticky="nsew")
         y_scrollbar.grid(row=0, column=1, sticky="ns")
 
-        table_box.rowconfigure(0, weight=1)
-        table_box.columnconfigure(0, weight=1)
-
         # ===== 日志 =====
-        log_box = ttk.LabelFrame(main, text="日志")
-        log_box.pack(fill="both", expand=True, pady=5)
+        log_box = ttk.LabelFrame(main, text="日志", style="Card.TLabelframe", padding=10)
+        log_box.grid(row=3, column=0, sticky="nsew")
+        log_box.columnconfigure(0, weight=1)
+        log_box.rowconfigure(0, weight=1)
 
-        self.log = ScrolledText(log_box, height=8)
-        self.log.pack(fill="both", expand=True)
+        self.log = ScrolledText(log_box, height=8, wrap="word")
+        self.log.grid(row=0, column=0, sticky="nsew")
+
+        # 注册到全局主题系统，确保深浅色切换时一起生效
+        app.register_theme_widget(self.log)
+
 
     # ===========================
     # 文件选择
@@ -707,7 +1436,8 @@ class AnalyzerTab:
 
 
 class TableGenTab:
-    def __init__(self, parent):
+    def __init__(self, app, parent):
+        self.app = app
         self.parent = parent
         self.queue: Queue = Queue()
         self.worker_thread: threading.Thread | None = None
@@ -723,104 +1453,255 @@ class TableGenTab:
         self._load_default_bms_dir()
         self._process_queue()
 
+    # ===========================
+    # 按钮式布尔开关
+    # ===========================
+    def _toggle_boolean_choice(self, var, group_name: str) -> None:
+        var.set(not bool(var.get()))
+        self._refresh_boolean_group(group_name)
+
+        if group_name == "custom_level":
+            self._toggle_custom_level()
+
+    def _refresh_boolean_group(self, group_name: str) -> None:
+        group = getattr(self, "_boolean_choice_groups", {}).get(group_name)
+        if not group:
+            return
+
+        var = group["var"]
+        button = group["button"]
+
+        button.configure(
+            style="ChoiceSelected.TButton" if bool(var.get()) else "Choice.TButton"
+        )
+
+    def _register_boolean_group(self, group_name: str, var, button) -> None:
+        if not hasattr(self, "_boolean_choice_groups"):
+            self._boolean_choice_groups = {}
+
+        self._boolean_choice_groups[group_name] = {
+            "var": var,
+            "button": button,
+        }
+        self._refresh_boolean_group(group_name)
 
     # ===========================
     # UI 构建
     # ===========================
     def _build(self):
-        main = ttk.Frame(self.parent, padding=20)
-        main.pack(fill="both", expand=True)
+        app = self.app
+
+        main = ttk.Frame(self.parent, style="App.TFrame", padding=12)
+        main.grid(row=0, column=0, sticky="nsew")
+
+        self.parent.columnconfigure(0, weight=1)
+        self.parent.rowconfigure(0, weight=1)
+
+        main.columnconfigure(0, weight=1)
+        main.rowconfigure(3, weight=3)
+        main.rowconfigure(4, weight=2)
+
+        # ===== 顶部标题 =====
+        header = ttk.Frame(main, style="App.TFrame")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        header.columnconfigure(0, weight=1)
+
+        ttk.Label(header, text="表格生成器", style="Title.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(
+            header,
+            text="根据 BMS 文件与 score.json 匹配或生成谱面条目，可选择自动追加缺失项目。",
+            style="Subtitle.TLabel",
+            wraplength=1200,
+            justify="left",
+        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
 
         # ===== 输入区 =====
-        input_box = ttk.LabelFrame(main, text="输入")
-        input_box.pack(fill="x", pady=5)
+        input_box = ttk.LabelFrame(
+            main, text="输入配置", style="Card.TLabelframe", padding=10
+        )
+        input_box.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        input_box.columnconfigure(0, weight=1)
 
-        ttk.Label(input_box, text="BMS 文件 / 文件夹路径").pack(anchor="w", padx=5, pady=(5, 0))
-        ttk.Entry(input_box, textvariable=self.input_var).pack(fill="x", padx=5, pady=5)
+        ttk.Label(input_box, text="BMS 文件 / 文件夹路径", style="SectionLabel.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        ttk.Label(
+            input_box,
+            text="支持单个谱面文件或整个文件夹批量处理。",
+            style="Hint.TLabel",
+            wraplength=900,
+            justify="left",
+        ).grid(row=1, column=0, sticky="ew", pady=(2, 6))
 
-        btn_row_1 = ttk.Frame(input_box)
-        btn_row_1.pack(fill="x", padx=5, pady=5)
-        ttk.Button(btn_row_1, text="选择文件", command=self._select_file).pack(side="left")
-        ttk.Button(btn_row_1, text="选择文件夹", command=self._select_folder).pack(side="left", padx=5)
+        self.input_entry = ttk.Entry(input_box, textvariable=self.input_var)
+        self.input_entry.grid(row=2, column=0, sticky="ew", pady=(0, 8))
 
-        ttk.Label(input_box, text="目标 score.json 路径").pack(anchor="w", padx=5, pady=(5, 0))
-        ttk.Entry(input_box, textvariable=self.score_json_var).pack(fill="x", padx=5, pady=5)
-    
-        btn_row_2 = ttk.Frame(input_box)
-        btn_row_2.pack(fill="x", padx=5, pady=5)
-        ttk.Button(btn_row_2, text="选择 score.json", command=self._select_score_json).pack(side="left")
-        ttk.Checkbutton(
+        btn_row_1 = ttk.Frame(input_box, style="CardInner.TFrame")
+        btn_row_1.grid(row=3, column=0, sticky="w", pady=(0, 10))
+
+        self.select_file_btn = ttk.Button(
+            btn_row_1, text="选择文件", command=self._select_file
+        )
+        self.select_file_btn.grid(row=0, column=0)
+
+        self.select_folder_btn = ttk.Button(
+            btn_row_1, text="选择文件夹", command=self._select_folder
+        )
+        self.select_folder_btn.grid(row=0, column=1, padx=(6, 0))
+
+        ttk.Label(input_box, text="目标 score.json 路径", style="SectionLabel.TLabel").grid(
+            row=4, column=0, sticky="w"
+        )
+        ttk.Label(
+            input_box,
+            text="用于匹配现有条目，或在需要时生成并追加新的谱面信息。",
+            style="Hint.TLabel",
+            wraplength=900,
+            justify="left",
+        ).grid(row=5, column=0, sticky="ew", pady=(2, 6))
+
+        self.score_json_entry = ttk.Entry(input_box, textvariable=self.score_json_var)
+        self.score_json_entry.grid(row=6, column=0, sticky="ew", pady=(0, 8))
+
+        btn_row_2 = ttk.Frame(input_box, style="CardInner.TFrame")
+        btn_row_2.grid(row=7, column=0, sticky="w", pady=(0, 10))
+
+        self.select_score_json_btn = ttk.Button(
+            btn_row_2, text="选择 score.json", command=self._select_score_json
+        )
+        self.select_score_json_btn.grid(row=0, column=0)
+
+        self.auto_append_btn = ttk.Button(
             btn_row_2,
             text="自动追加到难易度",
-            variable=self.auto_append_var,
-        ).pack(side="left", padx=10)
-        level_row = ttk.Frame(input_box)
-        level_row.pack(fill="x", padx=5, pady=5)
+            style="Choice.TButton",
+            command=lambda: self._toggle_boolean_choice(self.auto_append_var, "auto_append"),
+        )
+        self.auto_append_btn.grid(row=0, column=1, padx=(10, 0), sticky="w")
 
-        ttk.Checkbutton(
+        self._register_boolean_group("auto_append", self.auto_append_var, self.auto_append_btn)
+
+        ttk.Label(input_box, text="Level 设置", style="SectionLabel.TLabel").grid(
+            row=8, column=0, sticky="w"
+        )
+        ttk.Label(
+            input_box,
+            text="可直接填写自定义 Level；开启后将不自动分析等级。",
+            style="Hint.TLabel",
+            wraplength=900,
+            justify="left",
+        ).grid(row=9, column=0, sticky="ew", pady=(2, 6))
+
+        level_row = ttk.Frame(input_box, style="CardInner.TFrame")
+        level_row.grid(row=10, column=0, sticky="ew")
+        level_row.columnconfigure(1, weight=1)
+
+        self.custom_level_btn = ttk.Button(
             level_row,
-            text="自定义 Level（开启后不自动分析）",
-            variable=self.use_custom_level_var,
-            command=self._toggle_custom_level,
-        ).pack(side="left")
+            text="启用自定义 Level",
+            style="Choice.TButton",
+            command=lambda: self._toggle_boolean_choice(self.use_custom_level_var, "custom_level"),
+        )
+        self.custom_level_btn.grid(row=0, column=0, sticky="w", padx=(0, 10))
 
         self.custom_level_entry = ttk.Entry(
             level_row,
             textvariable=self.custom_level_var,
-            width=20,
             state="disabled",
         )
-        self.custom_level_entry.pack(side="left", padx=10)
+        self.custom_level_entry.grid(row=0, column=1, sticky="ew")
 
+        self._register_boolean_group(
+            "custom_level",
+            self.use_custom_level_var,
+            self.custom_level_btn,
+        )
 
         # ===== 控制区 =====
-        control_box = ttk.LabelFrame(main, text="控制")
-        control_box.pack(fill="x", pady=5)
+        control_box = ttk.LabelFrame(
+            main, text="操作控制", style="Card.TLabelframe", padding=10
+        )
+        control_box.grid(row=2, column=0, sticky="ew", pady=(0, 8))
+        control_box.columnconfigure(0, weight=1)
+        control_box.columnconfigure(1, weight=4)
 
-        self.start_btn = ttk.Button(control_box, text="开始生成", command=self._start)
-        self.start_btn.pack(side="left", padx=5, pady=5)
+        ttk.Label(
+            control_box,
+            text="开始后将扫描谱面、匹配 score.json，并根据设置决定是否生成缺失条目。",
+            style="Hint.TLabel",
+            wraplength=900,
+            justify="left",
+        ).grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+
+        self.start_btn = ttk.Button(
+            control_box,
+            text="开始生成",
+            command=self._start,
+            style="Accent.TButton",
+        )
+        self.start_btn.grid(row=1, column=0, sticky="ew", padx=(0, 8), pady=(0, 6))
 
         self.progress = ttk.Progressbar(control_box, mode="indeterminate")
-        self.progress.pack(fill="x", padx=5, pady=5)
+        self.progress.grid(row=1, column=1, sticky="ew")
 
         # ===== 结果表格 =====
-        table_box = ttk.LabelFrame(main, text="结果")
-        table_box.pack(fill="both", expand=True, pady=5)
-
-        style = ttk.Style()
-        style.configure("Treeview", rowheight=40)
+        table_box = ttk.LabelFrame(
+            main, text="生成结果", style="Card.TLabelframe", padding=10
+        )
+        table_box.grid(row=3, column=0, sticky="nsew", pady=(0, 8))
+        table_box.columnconfigure(0, weight=1)
+        table_box.rowconfigure(0, weight=1)
 
         columns = ("Chart", "Title", "Artist", "Level", "Status", "Appended")
-
         self.tree = ttk.Treeview(table_box, columns=columns, show="headings")
 
-        column_widths = {
-            "Chart": 180,
-            "Title": 240,
-            "Artist": 180,
-            "Level": 100,
-            "Status": 120,
-            "Appended": 80,
-        }   
+        self.tree.heading("Chart", text="谱面文件")
+        self.tree.heading("Title", text="标题")
+        self.tree.heading("Artist", text="作者")
+        self.tree.heading("Level", text="等级")
+        self.tree.heading("Status", text="状态")
+        self.tree.heading("Appended", text="已追加")
 
-        for col in columns:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, anchor="center", width=column_widths.get(col, 120))
+        self.tree.column("Chart", anchor="w", width=220)
+        self.tree.column("Title", anchor="w", width=260)
+        self.tree.column("Artist", anchor="w", width=180)
+        self.tree.column("Level", anchor="center", width=100)
+        self.tree.column("Status", anchor="center", width=120)
+        self.tree.column("Appended", anchor="center", width=80)
 
         y_scrollbar = ttk.Scrollbar(table_box, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=y_scrollbar.set)
+        x_scrollbar = ttk.Scrollbar(table_box, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set)
+
         self.tree.grid(row=0, column=0, sticky="nsew")
         y_scrollbar.grid(row=0, column=1, sticky="ns")
-
-        table_box.rowconfigure(0, weight=1)
-        table_box.columnconfigure(0, weight=1)
+        x_scrollbar.grid(row=1, column=0, sticky="ew")
 
         # ===== 日志 =====
-        log_box = ttk.LabelFrame(main, text="日志")
-        log_box.pack(fill="both", expand=True, pady=5)
+        log_box = ttk.LabelFrame(
+            main, text="运行日志", style="Card.TLabelframe", padding=10
+        )
+        log_box.grid(row=4, column=0, sticky="nsew")
+        log_box.columnconfigure(0, weight=1)
+        log_box.rowconfigure(0, weight=1)
 
-        self.log = ScrolledText(log_box, height=10)
-        self.log.pack(fill="both", expand=True)
+        self.log = ScrolledText(
+            log_box,
+            height=10,
+            wrap="word",
+            font=("Consolas", 10),
+            padx=8,
+            pady=8,
+            relief="flat",
+            bd=0,
+        )
+        self.log.grid(row=0, column=0, sticky="nsew")
+
+        app.register_theme_widget(self.log)
+
+        self._log("Get Ready.")
 
     # ===========================
     # 文件选择
@@ -859,7 +1740,6 @@ class TableGenTab:
             except OSError:
                 pass
 
-
     def _load_default_bms_dir(self):
         config_path = Path("default_bms_dir.txt")
         default_dir = Path.cwd()
@@ -883,7 +1763,6 @@ class TableGenTab:
             p = default_dir
 
         self.input_var.set(str(p))
-
 
     def _select_score_json(self):
         config_path = Path("default_json_dir.txt")
@@ -916,7 +1795,6 @@ class TableGenTab:
         if path:
             self.score_json_var.set(path)
 
-
     # ===========================
     # 开始执行
     # ===========================
@@ -939,6 +1817,7 @@ class TableGenTab:
         self.start_btn.config(state="disabled")
         self.tree.delete(*self.tree.get_children())
         self.export_rows.clear()
+        self._log(f"开始处理：{input_path}")
 
         self.worker_thread = threading.Thread(
             target=self._run,
@@ -958,14 +1837,13 @@ class TableGenTab:
     # 后台执行
     # ===========================
     def _run(
-    self,
-    input_path: str,
-    score_json_path: str,
-    auto_append: bool,
-    use_custom_level: bool,
-    custom_level: str,
+        self,
+        input_path: str,
+        score_json_path: str,
+        auto_append: bool,
+        use_custom_level: bool,
+        custom_level: str,
     ):
-
         try:
             p = Path(input_path)
 
@@ -996,7 +1874,6 @@ class TableGenTab:
                     custom_level,
                 )
 
-
             self.queue.put(("done", "处理完成"))
 
         except Exception as e:
@@ -1020,14 +1897,13 @@ class TableGenTab:
     # 单文件处理
     # ===========================
     def _process_one(
-            self,
-            chart_path: Path,
-            score_json_path: str,
-            auto_append: bool,
-            use_custom_level: bool,
-            custom_level: str,
-        ):
-
+        self,
+        chart_path: Path,
+        score_json_path: str,
+        auto_append: bool,
+        use_custom_level: bool,
+        custom_level: str,
+    ):
         try:
             if auto_append:
                 result = append_missing_entry_if_needed(
@@ -1106,8 +1982,6 @@ class TableGenTab:
         except Exception as e:
             self.queue.put(("log", f"失败: {chart_path.name}: {e}"))
 
-
-
     # ===========================
     # UI 队列更新
     # ===========================
@@ -1138,7 +2012,6 @@ class TableGenTab:
                     )
                     self.export_rows.append(payload)
 
-
                 elif kind == "done":
                     self._log(payload)
                     self.progress.stop()
@@ -1160,6 +2033,7 @@ class TableGenTab:
     def _log(self, text: str):
         self.log.insert("end", text + "\n")
         self.log.see("end")
+
 
 
 class Om2BmsGuiApp:
@@ -1214,6 +2088,11 @@ class Om2BmsGuiApp:
         self.export_button: ttk.Button | None = None
         self.progress_bar: ttk.Progressbar | None = None
         self.log_box: ScrolledText | None = None
+        self.is_dark_theme = False
+        self.theme_button_var = tk.StringVar(value="深色模式")
+        self._theme_registered_widgets = []
+        self._theme_registered_canvases = []
+
 
         self._build_ui()
         self._sync_mode_widgets()
@@ -1221,28 +2100,108 @@ class Om2BmsGuiApp:
         # self.root.after(350, self._show_open_source_warning)
 
     def _build_ui(self) -> None:
-        container = ttk.Frame(self.root, style="App.TFrame")
+        container = ttk.Frame(self.root, style="App.TFrame", padding=12)
         container.grid(row=0, column=0, sticky="nsew")
         container.columnconfigure(0, weight=1)
-        container.rowconfigure(0, weight=1)
+        container.rowconfigure(1, weight=1)
 
+        # ================= 顶部工具栏 =================
+        top_bar = ttk.Frame(container, style="App.TFrame")
+        top_bar.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        top_bar.columnconfigure(0, weight=1)
+        top_bar.columnconfigure(1, weight=0)
+
+        ttk.Label(
+            top_bar,
+            text=APP_TITLE,
+            style="Title.TLabel",
+        ).grid(row=0, column=0, sticky="w")
+
+        ttk.Button(
+            top_bar,
+            textvariable=self.theme_button_var,
+            command=self.toggle_theme,
+        ).grid(row=0, column=1, sticky="e")
+
+        # ================= Notebook =================
         notebook = ttk.Notebook(container)
-        notebook.grid(row=0, column=0, sticky="nsew")
+        notebook.grid(row=1, column=0, sticky="nsew")
 
-        tab_converter = ttk.Frame(notebook)
-        tab_analyzer = ttk.Frame(notebook)
-        tab_tablegen = ttk.Frame(notebook)
+        tab_converter = ttk.Frame(notebook, style="App.TFrame")
+        tab_analyzer = ttk.Frame(notebook, style="App.TFrame")
+        tab_tablegen = ttk.Frame(notebook, style="App.TFrame")
 
         notebook.add(tab_converter, text="转谱工具")
         notebook.add(tab_analyzer, text="BMS难度分析")
         notebook.add(tab_tablegen, text="难易度生成工具")
 
-        # ✅ 关键：把 UI 构建交给 class
-        ConverterTab(self, tab_converter)
-        AnalyzerTab(self, tab_analyzer)
-        TableGenTab(tab_tablegen)
+        # 把各个 Tab 实例保存下来也更方便后续扩展
+        self.converter_tab = ConverterTab(self, tab_converter)
+        self.analyzer_tab = AnalyzerTab(self, tab_analyzer)
+        self.tablegen_tab = TableGenTab(self,tab_tablegen)
+
+        # 构建完成后统一应用一次当前主题
+        self.apply_current_theme()
 
         self._sync_export_button()
+
+    def register_theme_widget(self, widget) -> None:
+        if widget is not None:
+            self._theme_registered_widgets.append(widget)
+
+    def register_theme_canvas(self, canvas) -> None:
+        if canvas is not None:
+            self._theme_registered_canvases.append(canvas)
+
+    def apply_current_theme(self) -> None:
+        apply_theme(self.root, dark=self.is_dark_theme)
+
+        colors = getattr(self.root, "_theme_colors", {})
+
+        text_bg = colors.get("text_bg", "#ffffff")
+        text_fg = colors.get("text_fg", "#1f2328")
+        select_bg = colors.get("select_bg", "#2f6feb")
+        select_fg = colors.get("select_fg", "#ffffff")
+        canvas_bg = colors.get("canvas_bg", "#f4f7fb")
+
+        for widget in self._theme_registered_widgets:
+            try:
+                widget.configure(
+                    background=text_bg,
+                    foreground=text_fg,
+                    insertbackground=text_fg,
+                    selectbackground=select_bg,
+                    selectforeground=select_fg,
+                )
+            except Exception:
+                try:
+                    widget.configure(
+                        bg=text_bg,
+                        fg=text_fg,
+                        insertbackground=text_fg,
+                        selectbackground=select_bg,
+                        selectforeground=select_fg,
+                    )
+                except Exception:
+                    pass
+
+        for canvas in self._theme_registered_canvases:
+            try:
+                canvas.configure(background=canvas_bg)
+            except Exception:
+                try:
+                    canvas.configure(bg=canvas_bg)
+                except Exception:
+                    pass
+
+        self.theme_button_var.set("浅色模式" if self.is_dark_theme else "深色模式")
+
+    def toggle_theme(self) -> None:
+        self.is_dark_theme = not self.is_dark_theme
+        self.apply_current_theme()
+
+
+
 
     def _sync_mode_widgets(self) -> None:
         mode = self.mode_var.get()
