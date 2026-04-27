@@ -30,6 +30,8 @@ from om2bms.gui.exporters.csv_exporter import export_mapped_dict_rows_to_csv
 from om2bms.gui.tabs.converter_tab import ConverterTab
 from om2bms.gui.tabs.analyzer_tab import AnalyzerTab
 from om2bms.gui.tabs.tablegen_tab import TableGenTab
+from om2bms.gui.tabs.mixed_analysis_tab import MixedAnalysisTab
+
 from om2bms.gui.workers.conversion_worker import ConversionWorker
 
 from om2bms.pipeline.types import ConversionOptions, ConversionResult, DifficultyAnalysisMode
@@ -143,14 +145,16 @@ class Om2BmsGuiApp:
         tab_converter = ttk.Frame(notebook, style="App.TFrame")
         tab_analyzer = ttk.Frame(notebook, style="App.TFrame")
         tab_tablegen = ttk.Frame(notebook, style="App.TFrame")
-
+        tab_mixed_analysis = ttk.Frame(notebook, style="App.TFrame")
         notebook.add(tab_converter, text="转谱工具")
         notebook.add(tab_analyzer, text="BMS难度分析")
         notebook.add(tab_tablegen, text="难易度生成工具")
-
+        notebook.add(tab_mixed_analysis, text="混合难度分析测试")
+    
         self.converter_tab = ConverterTab(self, tab_converter)
         self.analyzer_tab = AnalyzerTab(self, tab_analyzer)
         self.tablegen_tab = TableGenTab(self, tab_tablegen)
+        self.mixed_analysis_tab = MixedAnalysisTab(self, tab_mixed_analysis)
 
         self.apply_current_theme()
         self._sync_export_button()

@@ -32,6 +32,7 @@ class ConversionPipelineService:
         try:
             with extracted_osz(archive) as extract_dir:
                 osu_files = list_osu_files(extract_dir)
+
                 if not osu_files:
                     return ConversionResult(
                         conversion_success=False,
@@ -41,50 +42,26 @@ class ConversionPipelineService:
                         conversion_error=f"No .osu files were found in {archive}.",
                     )
 
-                charts: list[ConvertedChart] = []
-                bg_files = []
+                charts, bg_files = self._convert_osu_files(
+                    osu_files=osu_files,
+                    output_root=output_root,
+                    options=options,
+                    extract_root=extract_dir,
+                )
 
-                for chart_index, osu_file in enumerate(osu_files, start=1):
-                    try:
-                        chart, bg_file = convert_single_osu_chart(
-                            osu_file=osu_file,
-                            output_dir=output_root,
-                            options=options,
-                            chart_index=chart_index,
-                            extract_root=extract_dir,
-                        )
-                    except Exception as exc:
-                        relative_path = str(Path(osu_file).relative_to(extract_dir))
-                        chart = ConvertedChart(
-                            chart_id=f"failed-{chart_index}",
-                            chart_index=chart_index,
-                            source_chart_name=Path(osu_file).name,
-                            source_osu_path=relative_path,
-                            difficulty_label=None,
-                            output_path=None,
-                            output_file_name=None,
-                            conversion_status="failed",
-                            conversion_error=str(exc),
-                        )
-                        bg_file = None
+                self._post_convert_assets(
+                    source_root=extract_dir,
+                    output_root=output_root,
+                    bg_files=bg_files,
+                    options=options,
+                )
 
-                    charts.append(chart)
-                    if bg_file is not None:
-                        bg_files.append(bg_file)
-
-                if options.bg:
-                    resize_backgrounds(bg_files)
-                copy_support_assets(extract_dir, output_root)
-
-            analysis_results, analysis_error = self._run_analysis(charts, options)
-            conversion_success = any(chart.conversion_status == "success" for chart in charts)
-            return ConversionResult(
-                conversion_success=conversion_success,
+            return self._build_conversion_result(
                 charts=charts,
-                analysis_results=analysis_results,
-                output_directory=str(output_root),
-                analysis_error=analysis_error,
+                output_root=output_root,
+                options=options,
             )
+
         except Exception as exc:
             return ConversionResult(
                 conversion_success=False,
@@ -93,6 +70,126 @@ class ConversionPipelineService:
                 output_directory=str(output_root),
                 conversion_error=str(exc),
             )
+
+    def convert_osu_file(
+        self,
+        osu_path: str | Path,
+        output_dir: str | Path,
+        options: ConversionOptions,
+    ) -> ConversionResult:
+        osu_file = Path(osu_path)
+        output_folder_name = options.output_folder_name or osu_file.stem
+        output_root = Path(output_dir) / output_folder_name
+        output_root.mkdir(parents=True, exist_ok=True)
+
+        try:
+            charts, bg_files = self._convert_osu_files(
+                osu_files=[osu_file],
+                output_root=output_root,
+                options=options,
+                extract_root=osu_file.parent,
+            )
+
+            self._post_convert_assets(
+                source_root=osu_file.parent,
+                output_root=output_root,
+                bg_files=bg_files,
+                options=options,
+            )
+
+            return self._build_conversion_result(
+                charts=charts,
+                output_root=output_root,
+                options=options,
+            )
+
+        except Exception as exc:
+            return ConversionResult(
+                conversion_success=False,
+                charts=[],
+                analysis_results=[],
+                output_directory=str(output_root),
+                conversion_error=str(exc),
+            )
+
+    def _convert_osu_files(
+        self,
+        osu_files: list[Path],
+        output_root: Path,
+        options: ConversionOptions,
+        extract_root: Path,
+    ) -> tuple[list[ConvertedChart], list[Path]]:
+        charts: list[ConvertedChart] = []
+        bg_files: list[Path] = []
+
+        for chart_index, osu_file in enumerate(osu_files, start=1):
+            try:
+                chart, bg_file = convert_single_osu_chart(
+                    osu_file=osu_file,
+                    output_dir=output_root,
+                    options=options,
+                    chart_index=chart_index,
+                    extract_root=extract_root,
+                )
+
+            except Exception as exc:
+                try:
+                    source_osu_path = str(Path(osu_file).relative_to(extract_root))
+                except Exception:
+                    source_osu_path = str(osu_file)
+
+                chart = ConvertedChart(
+                    chart_id=f"failed-{chart_index}",
+                    chart_index=chart_index,
+                    source_chart_name=Path(osu_file).name,
+                    source_osu_path=source_osu_path,
+                    difficulty_label=None,
+                    output_path=None,
+                    output_file_name=None,
+                    conversion_status="failed",
+                    conversion_error=str(exc),
+                )
+                bg_file = None
+
+            charts.append(chart)
+
+            if bg_file is not None:
+                bg_files.append(bg_file)
+
+        return charts, bg_files
+
+    def _post_convert_assets(
+        self,
+        source_root: Path,
+        output_root: Path,
+        bg_files: list[Path],
+        options: ConversionOptions,
+    ) -> None:
+        if options.bg:
+            resize_backgrounds(bg_files)
+
+        copy_support_assets(source_root, output_root)
+
+    def _build_conversion_result(
+        self,
+        charts: list[ConvertedChart],
+        output_root: Path,
+        options: ConversionOptions,
+    ) -> ConversionResult:
+        analysis_results, analysis_error = self._run_analysis(charts, options)
+
+        conversion_success = any(
+            chart.conversion_status == "success"
+            for chart in charts
+        )
+
+        return ConversionResult(
+            conversion_success=conversion_success,
+            charts=charts,
+            analysis_results=analysis_results,
+            output_directory=str(output_root),
+            analysis_error=analysis_error,
+        )
 
     def _run_analysis(
         self,
@@ -110,17 +207,25 @@ class ConversionPipelineService:
 
         selected_chart_ids: set[str]
         analysis_error = None
+
         if mode == DifficultyAnalysisMode.ALL:
-            selected_chart_ids = {chart.chart_id for chart in successful_charts}
+            selected_chart_ids = {
+                chart.chart_id
+                for chart in successful_charts
+            }
         else:
             try:
-                target_chart = self._resolve_single_target(successful_charts, options.difficulty_target_id or "")
+                target_chart = self._resolve_single_target(
+                    successful_charts,
+                    options.difficulty_target_id or "",
+                )
                 selected_chart_ids = {target_chart.chart_id}
             except Exception as exc:
                 selected_chart_ids = set()
                 analysis_error = str(exc)
 
         results: list[AnalysisResult] = []
+
         for chart in charts:
             if chart.chart_id not in selected_chart_ids:
                 results.append(self._build_skipped_result(chart, enabled=False))
@@ -144,6 +249,7 @@ class ConversionPipelineService:
                         output_path=chart.output_path,
                     )
                 )
+
             except Exception as exc:
                 results.append(
                     AnalysisResult(
@@ -161,22 +267,42 @@ class ConversionPipelineService:
                         output_path=chart.output_path,
                     )
                 )
+
         return results, analysis_error
 
-    def _resolve_single_target(self, charts: list[ConvertedChart], selector: str) -> ConvertedChart:
+    def _resolve_single_target(
+        self,
+        charts: list[ConvertedChart],
+        selector: str,
+    ) -> ConvertedChart:
         normalized = selector.strip()
+
         if not normalized:
             raise ValueError("A difficulty target is required when analysis mode is 'single'.")
 
-        matches = [chart for chart in charts if chart.matches_selector(normalized)]
+        matches = [
+            chart for chart in charts
+            if chart.matches_selector(normalized)
+        ]
+
         if not matches:
-            raise LookupError(f"No converted chart matched the analysis target: {selector}")
+            raise LookupError(
+                f"No converted chart matched the analysis target: {selector}"
+            )
+
         if len(matches) > 1:
             match_ids = ", ".join(chart.chart_id for chart in matches)
-            raise ValueError(f"Analysis target '{selector}' is ambiguous. Matching chartIds: {match_ids}")
+            raise ValueError(
+                f"Analysis target '{selector}' is ambiguous. Matching chartIds: {match_ids}"
+            )
+
         return matches[0]
 
-    def _build_skipped_result(self, chart: ConvertedChart, enabled: bool) -> AnalysisResult:
+    def _build_skipped_result(
+        self,
+        chart: ConvertedChart,
+        enabled: bool,
+    ) -> AnalysisResult:
         return AnalysisResult(
             chart_id=chart.chart_id,
             enabled=enabled,
@@ -191,3 +317,4 @@ class ConversionPipelineService:
             error=None,
             output_path=chart.output_path,
         )
+
