@@ -1,0 +1,3 @@
+"""
+GUI tabs package.
+"""
