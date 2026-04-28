@@ -12,7 +12,7 @@
     "derived.dan_estimate": "dan_estimate",
     "derived.bms_raw_score":"bms_raw_score",
     "derived.bms_difficulty_label": "bms_difficulty_label",
-    "derived.osu_url": "osu_url",
+    "derived.osu_url": "url",
     "derived.md5": "md5",
     "derived.sha256": "sha256",
     "derived.total_notes": "total_notes",
