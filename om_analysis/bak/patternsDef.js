@@ -156,29 +156,19 @@ function inverseReady(xs) {
 }
 
 export function CORE_STREAM(xs) {
-    // 7K Lightstream 归入 Stream
-    if (xs.length >= 2 && xs[0].Keys === 7) {
-        const [a, b] = xs;
-        if (a.Notes > 1 && b.Notes === 1 && b.Jacks === 0) {
-            return 2;
-        }
-    }
-
-    // 原来的单键 stream 判定
     if (xs.length < 5) return 0;
     const [a, b, c, d, e] = xs;
     if (
-        a.Notes === 1 && a.Jacks === 0 &&
-        b.Notes === 1 && b.Jacks === 0 &&
-        c.Notes === 1 && c.Jacks === 0 &&
-        d.Notes === 1 && d.Jacks === 0 &&
-        e.Notes === 1 && e.Jacks === 0
+    a.Notes === 1 && a.Jacks === 0 &&
+    b.Notes === 1 && b.Jacks === 0 &&
+    c.Notes === 1 && c.Jacks === 0 &&
+    d.Notes === 1 && d.Jacks === 0 &&
+    e.Notes === 1 && e.Jacks === 0
     ) {
-        if (a.RawNotes[0] !== e.RawNotes[0]) return 5;
+    if (a.RawNotes[0] !== e.RawNotes[0]) return 5;
     }
     return 0;
 }
-
 
 export function CORE_JACKS(xs) {
     if (!xs.length) return 0;
@@ -188,22 +178,12 @@ export function CORE_JACKS(xs) {
 
 export function CORE_CHORDSTREAM(xs) {
     if (xs.length < 4) return 0;
-
-    // 排除 7K Lightstream
-    if (xs[0].Keys === 7 && xs.length >= 2) {
-        const [a, b] = xs;
-        if (a.Notes > 1 && b.Notes === 1 && b.Jacks === 0) {
-            return 0;
-        }
-    }
-
     const [a, b, c, d] = xs;
     if (a.Notes > 1 && a.Jacks === 0 && b.Jacks === 0 && c.Jacks === 0 && d.Jacks === 0) {
-        if (b.Notes > 1 || c.Notes > 1 || d.Notes > 1) return 4;
+    if (b.Notes > 1 || c.Notes > 1 || d.Notes > 1) return 4;
     }
     return 0;
 }
-
 
 export function CORE_COORDINATION(xs) {
     if (!xs.length) return 0;
@@ -386,30 +366,6 @@ export function CHORDSTREAM_7K_BRACKETS(xs) {
     }
     return 0;
 }
-
-export function STREAM_SPEED(xs) {
-    if (xs.length < 5) return 0;
-    const [a, b, c, d, e] = xs;
-    if (
-        a.Notes === 1 && a.Jacks === 0 &&
-        b.Notes === 1 && b.Jacks === 0 &&
-        c.Notes === 1 && c.Jacks === 0 &&
-        d.Notes === 1 && d.Jacks === 0 &&
-        e.Notes === 1 && e.Jacks === 0
-    ) {
-        if (a.RawNotes[0] !== e.RawNotes[0]) return 5;
-    }
-    return 0;
-}
-
-export function STREAM_7K_LIGHTSTREAM(xs) {
-    if (xs.length < 2) return 0;
-    const [a, b] = xs;
-    return a.Notes > 1 && b.Notes === 1 && b.Jacks === 0 ? 2 : 0;
-}
-
-
-
 
 export const CHORDSTREAM_OTHER_DOUBLE_STREAMS = CHORDSTREAM_7K_DOUBLE_STREAMS;
 export const CHORDSTREAM_OTHER_DENSE_CHORDSTREAM = CHORDSTREAM_7K_DENSE_CHORDSTREAM;
@@ -622,19 +578,13 @@ export function SPECIFIC_4K() {
     ], WILDCARD_SPECIFIC_ORDER);
 
     return makeSpecificPatterns(
-        [
-            ["Rolls", STREAM_4K_ROLL],
-            ["Trills", STREAM_4K_TRILL],
-            ["Minitrills", STREAM_4K_MINITRILL],
-            ["Speed", STREAM_SPEED],
-        ],
-        [["Handstream", CHORDSTREAM_4K_HANDSTREAM], ["Split Trill", CHORDSTREAM_4K_SPLITTRILL], ["Jumptrill", CHORDSTREAM_4K_JUMPTRILL], ["Jumpstream", CHORDSTREAM_4K_JUMPSTREAM]],
-        [["Longjacks", JACKS_LONGJACKS], ["Quadstream", JACKS_4K_QUADSTREAM], ["Gluts", JACKS_4K_GLUTS], ["Chordjacks", JACKS_CHORDJACKS], ["Minijacks", JACKS_MINIJACKS]],
-        coordination,
-        density,
-        wildcard,
+    [["Rolls", STREAM_4K_ROLL], ["Trills", STREAM_4K_TRILL], ["Minitrills", STREAM_4K_MINITRILL]],
+    [["Handstream", CHORDSTREAM_4K_HANDSTREAM], ["Split Trill", CHORDSTREAM_4K_SPLITTRILL], ["Jumptrill", CHORDSTREAM_4K_JUMPTRILL], ["Jumpstream", CHORDSTREAM_4K_JUMPSTREAM]],
+    [["Longjacks", JACKS_LONGJACKS], ["Quadstream", JACKS_4K_QUADSTREAM], ["Gluts", JACKS_4K_GLUTS], ["Chordjacks", JACKS_CHORDJACKS], ["Minijacks", JACKS_MINIJACKS]],
+    coordination,
+    density,
+    wildcard,
     );
-
 }
 
 export function SPECIFIC_7K() {
@@ -657,21 +607,13 @@ export function SPECIFIC_7K() {
     ], WILDCARD_SPECIFIC_ORDER);
 
     return makeSpecificPatterns(
-        [
-            ["Light Stream", STREAM_7K_LIGHTSTREAM],
-            ["Speed", STREAM_SPEED],
-        ],
-        [
-            ["Brackets", CHORDSTREAM_7K_BRACKETS],
-            ["Double Stream", CHORDSTREAM_7K_DOUBLE_STREAMS],
-            ["Dense Chordstream", CHORDSTREAM_7K_DENSE_CHORDSTREAM],
-        ],
-        [["Longjacks", JACKS_LONGJACKS], ["Chordjacks", JACKS_CHORDJACKS], ["Minijacks", JACKS_MINIJACKS]],
-        coordination,
-        density,
-        wildcard,
+    [],
+    [["Brackets", CHORDSTREAM_7K_BRACKETS], ["Double Stream", CHORDSTREAM_7K_DOUBLE_STREAMS], ["Dense Chordstream", CHORDSTREAM_7K_DENSE_CHORDSTREAM], ["Light Chordstream", CHORDSTREAM_7K_LIGHT_CHORDSTREAM]],
+    [["Longjacks", JACKS_LONGJACKS], ["Chordjacks", JACKS_CHORDJACKS], ["Minijacks", JACKS_MINIJACKS]],
+    coordination,
+    density,
+    wildcard,
     );
-
 }
 
 export function SPECIFIC_OTHER() {

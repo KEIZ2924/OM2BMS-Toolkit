@@ -156,29 +156,19 @@ function inverseReady(xs) {
 }
 
 export function CORE_STREAM(xs) {
-    // 7K Lightstream 归入 Stream
-    if (xs.length >= 2 && xs[0].Keys === 7) {
-        const [a, b] = xs;
-        if (a.Notes > 1 && b.Notes === 1 && b.Jacks === 0) {
-            return 2;
-        }
-    }
-
-    // 原来的单键 stream 判定
     if (xs.length < 5) return 0;
     const [a, b, c, d, e] = xs;
     if (
-        a.Notes === 1 && a.Jacks === 0 &&
-        b.Notes === 1 && b.Jacks === 0 &&
-        c.Notes === 1 && c.Jacks === 0 &&
-        d.Notes === 1 && d.Jacks === 0 &&
-        e.Notes === 1 && e.Jacks === 0
+    a.Notes === 1 && a.Jacks === 0 &&
+    b.Notes === 1 && b.Jacks === 0 &&
+    c.Notes === 1 && c.Jacks === 0 &&
+    d.Notes === 1 && d.Jacks === 0 &&
+    e.Notes === 1 && e.Jacks === 0
     ) {
-        if (a.RawNotes[0] !== e.RawNotes[0]) return 5;
+    if (a.RawNotes[0] !== e.RawNotes[0]) return 5;
     }
     return 0;
 }
-
 
 export function CORE_JACKS(xs) {
     if (!xs.length) return 0;

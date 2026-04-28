@@ -350,20 +350,59 @@ def should_run_bms_after_mixed(
     规则：
         1. output_bms=True 时，始终转换并输出 BMS。
         2. enable_bms_analysis=True 时，始终转换 BMS，用于构建基本 BMS 信息。
-        3. 只有 enable_bms_analysis=True 且 route.mode == "RC" 时，才执行 BMS 难度分析。
+        3. 只有 enable_bms_analysis=True 且 compact.ln_ratio < 5% 时，才执行 BMS 难度分析。
         4. enable_bms_analysis=False 且 output_bms=False 时，完全跳过 BMS。
     """
 
     route_mode = get_route_mode_func(data)
 
+    # 读取 compact.ln_ratio
+    ln_ratio = None
+    compact = data.get("compact") if isinstance(data, dict) else None
+
+    if isinstance(compact, dict):
+        ln_ratio = compact.get("lnRatio")
+
+    ln_ratio_value = None
+
+    try:
+        if ln_ratio is not None:
+            if isinstance(ln_ratio, str):
+                value = ln_ratio.strip()
+
+                if value.endswith("%"):
+                    # 例如 "3.5%" -> 0.035
+                    ln_ratio_value = float(value[:-1].strip()) / 100.0
+                else:
+                    ln_ratio_value = float(value)
+            else:
+                ln_ratio_value = float(ln_ratio)
+
+            # 如果是 3、4.5 这种形式，认为它表示百分数 3%、4.5%
+            if ln_ratio_value > 1:
+                ln_ratio_value = ln_ratio_value / 100.0
+
+    except Exception:
+        ln_ratio_value = None
+
     # 是否执行 BMS 难度分析
-    should_analyze_bms = enable_bms_analysis and route_mode == "RC"
+    #
+    # 原逻辑：
+    # should_analyze_bms = enable_bms_analysis and route_mode == "RC"
+    #
+    # 新逻辑：
+    # compact.ln_ratio < 5% 时执行 BMS 难度分析
+    should_analyze_bms = (
+        enable_bms_analysis
+        and ln_ratio_value is not None
+        and ln_ratio_value < 0.05
+    )
 
     # 是否执行 BMS 转换
     #
-    # 新逻辑：
+    # 保持原逻辑：
     # 只要启用了 BMS 分析，就需要转换 BMS，
-    # 即使 route.mode 不是 RC，也要通过临时转换收集基本 BMS 信息。
+    # 即使不执行 BMS 难度分析，也要通过临时转换收集基本 BMS 信息。
     should_convert_bms = output_bms or enable_bms_analysis
 
     if not should_convert_bms:
@@ -371,13 +410,17 @@ def should_run_bms_after_mixed(
         return False, False, reason
 
     if output_bms and should_analyze_bms:
-        reason = 'output_bms=True，始终转换输出；且 route.mode == "RC"，执行 BMS 难度分析'
+        reason = (
+            f"output_bms=True，始终转换输出；"
+            f"compact.ln_ratio={ln_ratio!r}，低于 5%，执行 BMS 难度分析"
+        )
 
     elif output_bms and not should_analyze_bms:
         if enable_bms_analysis:
             reason = (
                 f"output_bms=True，始终转换输出；"
-                f"route.mode={route_mode!r}，不执行 BMS 难度分析，仅构建基本 BMS 信息"
+                f"compact.ln_ratio={ln_ratio!r}，不低于 5% 或无法读取，"
+                f"不执行 BMS 难度分析，仅构建基本 BMS 信息"
             )
         else:
             reason = (
@@ -386,15 +429,20 @@ def should_run_bms_after_mixed(
             )
 
     elif not output_bms and should_analyze_bms:
-        reason = 'route.mode == "RC"，使用临时目录转换 BMS，并执行 BMS 难度分析'
+        reason = (
+            f"compact.ln_ratio={ln_ratio!r}，低于 5%，"
+            f"使用临时目录转换 BMS，并执行 BMS 难度分析"
+        )
 
     else:
         reason = (
             f"BMS 分析已开启，使用临时目录转换 BMS；"
-            f"但 route.mode={route_mode!r}，不执行 BMS 难度分析，仅构建基本 BMS 信息"
+            f"但 compact.ln_ratio={ln_ratio!r}，不低于 5% 或无法读取，"
+            f"不执行 BMS 难度分析，仅构建基本 BMS 信息"
         )
 
     return True, should_analyze_bms, reason
+
 
 
 

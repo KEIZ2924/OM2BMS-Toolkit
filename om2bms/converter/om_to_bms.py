@@ -102,15 +102,7 @@ class OsuManiaToBMSParser:
         music_start_param = self.music_start_time(self.beatmap)
         self.get_next_measure(
             music_start_param[0], music_start_param[1], self.beatmap)
-
-        # self.write_buffer(self.create_statistics())        
-
         OsuManiaToBMSParser._out_file.close()
-
-        # print("\tNotes:", self.note_count)
-        # print("\tLNs:", self.ln_count)
-        # print("\tTotal_Notes:", self.note_count + self.ln_count)
-
         file = os.path.dirname(in_file)
         if OsuManiaToBMSParser._convertion_options["BG"] and self.beatmap.stagebg is not None and \
                 os.path.isfile(os.path.join(file, self.beatmap.stagebg)):

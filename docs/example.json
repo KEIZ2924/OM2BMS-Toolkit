@@ -1,0 +1,323 @@
+{
+  "ok": true,
+  "summaryText": "────────────────────────────────────────────────────\n  ★ SR: 11.04\n◈ Estimate : > Regular Stellium high || > LN Stellium high\n  ♪ Mode     : MIX   Keys: 7K   LN: 37.5%\n────────────────────────────────────────────────────\n  TOP PATTERNS\n────────────────────────────────────────────────────\n▶ Chordstream  281/256 BPM  331,004 Amount\n    [███████████████████░░░░░░░░░░░░░░░░░]\n    Dense Chordstream (48.9%), Light Chordstream (23.5%), Double Stream (8.6%), Brackets (0.4%)\n\n▶ Coordination  256 BPM  105,794 Amount\n    [██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]\n    Shield (11.7%), Release (0.3%)\n\n▶ Wildcard  294 BPM  99,008 Amount\n    [██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]\n    Speedy WC (67.0%), Jacky WC (33.0%)\n\n▶ Density  256 BPM  77,867 Amount\n    [█████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]\n    LCS Density (14.6%), DS Density (11.6%), DCS Density (10.4%)\n────────────────────────────────────────────────────",
+  "route": {
+    "mode": "MIX",
+    "route": [
+      ".osu",
+      "Pattern service analyzePatternFromText",
+      "runMixedEstimatorFromText",
+      "Sunny baseline",
+      "7K",
+      "6K/7K 基本以 Sunny 为主",
+      "输出 star / estDiff / numericDifficulty / lnRatio / columnCount"
+    ]
+  },
+  "compact": {
+    "star": 11.035749963992037,
+    "estDiff": "> Regular Stellium high || > LN Stellium high",
+    "numericDifficulty": null,
+    "numericDifficultyHint": null,
+    "lnRatio": 0.3746824724809483,
+    "columnCount": 7,
+    "mixedCompanellaPlan": null
+  },
+  "pattern": {
+    "ok": true,
+    "summary": {
+      "hasReport": true,
+      "reportKeys": [
+        "Clusters",
+        "Category",
+        "LNPercent",
+        "HBRowRatio",
+        "ModeTag",
+        "SVAmount",
+        "Duration",
+        "ImportantClusters"
+      ],
+      "clusterCount": 18,
+      "topFiveClusterCount": 5,
+      "Keys": null,
+      "NoteCount": null,
+      "FirstNote": null,
+      "LastNote": null,
+      "ActiveDurationMs": null,
+      "byPattern": {
+        "Chordstream": {
+          "count": 3,
+          "totalAmount": 347545
+        },
+        "Density": {
+          "count": 3,
+          "totalAmount": 125937
+        },
+        "Coordination": {
+          "count": 3,
+          "totalAmount": 139032
+        },
+        "Wildcard": {
+          "count": 3,
+          "totalAmount": 189592
+        },
+        "Stream": {
+          "count": 3,
+          "totalAmount": 60692
+        },
+        "Jacks": {
+          "count": 3,
+          "totalAmount": 14110
+        }
+      },
+      "bySpecificType": {
+        "Dense Chordstream": {
+          "count": 2,
+          "totalAmount": 331004
+        },
+        "Light Chordstream": {
+          "count": 3,
+          "totalAmount": 347545
+        },
+        "Double Stream": {
+          "count": 3,
+          "totalAmount": 347545
+        },
+        "Brackets": {
+          "count": 2,
+          "totalAmount": 331004
+        },
+        "LCS Density": {
+          "count": 2,
+          "totalAmount": 99385
+        },
+        "DS Density": {
+          "count": 2,
+          "totalAmount": 99385
+        },
+        "DCS Density": {
+          "count": 2,
+          "totalAmount": 99385
+        },
+        "Shield": {
+          "count": 3,
+          "totalAmount": 139032
+        },
+        "Release": {
+          "count": 3,
+          "totalAmount": 139032
+        },
+        "Speedy WC": {
+          "count": 3,
+          "totalAmount": 189592
+        },
+        "Jacky WC": {
+          "count": 2,
+          "totalAmount": 171396
+        },
+        "Inverse": {
+          "count": 2,
+          "totalAmount": 48070
+        },
+        "None": {
+          "count": 3,
+          "totalAmount": 60692
+        },
+        "Minijacks": {
+          "count": 3,
+          "totalAmount": 14110
+        },
+        "Chordjacks": {
+          "count": 2,
+          "totalAmount": 13796
+        }
+      }
+    },
+    "topFiveClusters": [
+      {
+        "Pattern": "Chordstream",
+        "SpecificType": "Dense Chordstream",
+        "SpecificTypes": [
+          [
+            "Dense Chordstream",
+            0.5906432748538012
+          ],
+          [
+            "Light Chordstream",
+            0.13060428849902533
+          ],
+          [
+            "Double Stream",
+            0.09259259259259259
+          ],
+          [
+            "Brackets",
+            0.003898635477582846
+          ]
+        ],
+        "Mixed": false,
+        "BPM": 256,
+        "MsPerBeat": 234,
+        "Amount": 238963,
+        "Importance": 39763443.2,
+        "RatingMultiplier": 0.65,
+        "Ratio": 0.5906432748538012
+      },
+      {
+        "Pattern": "Density",
+        "SpecificType": "LCS Density",
+        "SpecificTypes": [
+          [
+            "LCS Density",
+            0.14638971315529178
+          ],
+          [
+            "DS Density",
+            0.11572700296735905
+          ],
+          [
+            "DCS Density",
+            0.10385756676557864
+          ]
+        ],
+        "Mixed": false,
+        "BPM": 256,
+        "MsPerBeat": 234,
+        "Amount": 77867,
+        "Importance": 17940556.8,
+        "RatingMultiplier": 0.9,
+        "Ratio": 0.14638971315529178
+      },
+      {
+        "Pattern": "Coordination",
+        "SpecificType": "Shield",
+        "SpecificTypes": [
+          [
+            "Shield",
+            0.11654135338345864
+          ],
+          [
+            "Release",
+            0.003132832080200501
+          ]
+        ],
+        "Mixed": false,
+        "BPM": 256,
+        "MsPerBeat": 234,
+        "Amount": 105794,
+        "Importance": 17333288.960000005,
+        "RatingMultiplier": 0.6400000000000001,
+        "Ratio": 0.11654135338345864
+      },
+      {
+        "Pattern": "Chordstream",
+        "SpecificType": "Light Chordstream",
+        "SpecificTypes": [
+          [
+            "Light Chordstream",
+            0.5070093457943925
+          ],
+          [
+            "Dense Chordstream",
+            0.22429906542056074
+          ],
+          [
+            "Double Stream",
+            0.07009345794392523
+          ],
+          [
+            "Brackets",
+            0.004672897196261682
+          ]
+        ],
+        "Mixed": true,
+        "BPM": 281,
+        "MsPerBeat": 214,
+        "Amount": 92041,
+        "Importance": 16811288.650000002,
+        "RatingMultiplier": 0.65,
+        "Ratio": 0.5070093457943925
+      },
+      {
+        "Pattern": "Wildcard",
+        "SpecificType": "Speedy WC",
+        "SpecificTypes": [
+          [
+            "Speedy WC",
+            0.6701030927835051
+          ],
+          [
+            "Jacky WC",
+            0.32989690721649484
+          ]
+        ],
+        "Mixed": true,
+        "BPM": 294,
+        "MsPerBeat": 204,
+        "Amount": 99008,
+        "Importance": 13098758.4,
+        "RatingMultiplier": 0.45,
+        "Ratio": 0.6701030927835051
+      }
+    ],
+    "error": null
+  },
+  "bms": {
+    "enabled": true,
+    "converted": true,
+    "analyzed": false,
+    "output_bms": false,
+    "temporary_output": true,
+    "output_directory": "C:\\Users\\Qi\\AppData\\Local\\Temp\\mixed_bms_eleb1gs5\\Kyutatsuki - Sea of Stars (tyrcs) [Interstellar Expedition]",
+    "conversion_error": null,
+    "analysis_error": null,
+    "charts": [
+      {
+        "chart_id": "761cb3490db2",
+        "chart_index": 1,
+        "source_chart_name": "Kyutatsuki - Sea of Stars (tyrcs) [Interstellar Expedition].osu",
+        "source_osu_path": "Kyutatsuki - Sea of Stars (tyrcs) [Interstellar Expedition].osu",
+        "difficulty_label": "Interstellar Expedition",
+        "output_path": "C:\\Users\\Qi\\AppData\\Local\\Temp\\mixed_bms_eleb1gs5\\Kyutatsuki - Sea of Stars (tyrcs) [Interstellar Expedition]\\Sea of Stars[Interstellar Expedition].bms",
+        "output_file_name": "Sea of Stars[Interstellar Expedition].bms",
+        "output_content": null,
+        "conversion_status": "success",
+        "conversion_error": null,
+        "analysis": {
+          "chart_id": "761cb3490db2",
+          "enabled": false,
+          "status": "skipped",
+          "estimated_difficulty": null,
+          "raw_score": null,
+          "difficulty_table": null,
+          "difficulty_label": null,
+          "difficulty_display": null,
+          "analysis_source": null,
+          "runtime_provider": null,
+          "error": null,
+          "output_path": "C:\\Users\\Qi\\AppData\\Local\\Temp\\mixed_bms_eleb1gs5\\Kyutatsuki - Sea of Stars (tyrcs) [Interstellar Expedition]\\Sea of Stars[Interstellar Expedition].bms"
+        },
+        "bms_hashes": {
+          "md5": "5de4746d022c027ae5c1a0a4ce1d36fb",
+          "sha256": "27a0b0f92adecbde7dd06c4878035603d50f4fd4e5d46835bce6eef0c64bccd5"
+        },
+        "bms_summary": {
+          "song_info": {
+            "title": "Sea of Stars",
+            "subtitle": "[Interstellar Expedition]",
+            "artist": "九立つ気/obj:tyrcs",
+            "subartist": "",
+            "song_last_ms": 324375.0000000013,
+            "total": 2597.0,
+            "total_notes": 12988,
+            "judge": 3,
+            "ln_ratio": 0.0,
+            "md5": null,
+            "sha256": null
+          },
+          "timeline_rows": 5540
+        },
+        "osu_url": "https://osu.ppy.sh/beatmapsets/2356548#mania/5074941"
+      }
+    ]
+  }
+}

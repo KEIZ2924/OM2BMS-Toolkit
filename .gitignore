@@ -7,6 +7,7 @@ __pycache__/
 build/
 dist/
 json_results/
+bms_output/
 
 # 可选：更精确地排除内部文件
 *.spec

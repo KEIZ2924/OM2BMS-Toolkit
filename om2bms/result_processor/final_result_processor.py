@@ -3,6 +3,24 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 from om2bms.result_processor.pattern_processor import build_pattern_fields
+import json
+from pathlib import Path
+from typing import Any
+import math 
+
+INTERVALS_PATH = Path("config/intervals.json")
+
+LEVEL_PREFIX_SYMBOLS = {
+    "RC": "★",
+    "LN": "◆",
+}
+
+def load_intervals() -> dict[str, list[list[Any]]]:
+    with INTERVALS_PATH.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+INTERVALS_CONFIG = load_intervals()
 
 
 def get_by_path(data: Any, path: str, default: Any = None) -> Any:
@@ -172,135 +190,74 @@ def build_derived_fields(data: dict[str, Any]) -> dict[str, Any]:
     从 raw_data 中构建最终输出前需要的派生字段。
     """
 
-    title = get_by_path(
-        data,
-        "bms.charts.0.bms_summary.song_info.title",
-    )
+    title = get_by_path(data, "bms.charts.0.bms_summary.song_info.title")
+    subtitle = get_by_path(data, "bms.charts.0.bms_summary.song_info.subtitle")
+    artist = get_by_path(data, "bms.charts.0.bms_summary.song_info.artist")
 
-    subtitle = get_by_path(
-        data,
-        "bms.charts.0.bms_summary.song_info.subtitle",
-    )
+    keys = get_by_path(data, "compact.columnCount")
+    route_mode = get_by_path(data, "route.mode")
+    sunny_sr = get_by_path(data, "compact.star")
+    ln_ratio = get_by_path(data, "compact.lnRatio")
 
-    artist = get_by_path(
-        data,
-        "bms.charts.0.bms_summary.song_info.artist",
-    )
+    total = get_by_path(data, "bms.charts.0.bms_summary.song_info.total")
+    song_last_ms = get_by_path(data, "bms.charts.0.bms_summary.song_info.song_last_ms")
+    total_notes = get_by_path(data, "bms.charts.0.bms_summary.song_info.total_notes")
+    judge = get_by_path(data, "bms.charts.0.bms_summary.song_info.judge")
 
-    keys = get_by_path(
-        data,
-        "compact.columnCount",
-    )
+    bms_difficulty_table = get_by_path(data, "bms.charts.0.analysis.difficulty_table")
+    bms_difficulty_label = get_by_path(data, "bms.charts.0.analysis.difficulty_label")
+    bms_difficulty_display = get_by_path(data, "bms.charts.0.analysis.difficulty_display")
+    bms_raw_score = get_by_path(data, "bms.charts.0.analysis.raw_score")
 
-    route_mode = get_by_path(
-        data,
-        "route.mode",
-    )
+    osu_url = get_by_path(data, "bms.charts.0.osu_url")
+    md5 = get_by_path(data, "bms.charts.0.bms_hashes.md5")
+    sha256 = get_by_path(data, "bms.charts.0.bms_hashes.sha256")
 
-    sunny_sr = get_by_path(
-        data,
-        "compact.star",
-    )
+    dan_estimate = build_dan_estimate(data)
 
-    ln_ratio = get_by_path(
-        data,
-        "compact.lnRatio",
-    )
-
-    total = get_by_path(
-        data,
-        "bms.charts.0.bms_summary.song_info.total",
-    )
-
-    song_last_ms = get_by_path(
-        data,
-        "bms.charts.0.bms_summary.song_info.song_last_ms",
-    )
-
-    bms_difficulty_table = get_by_path(
-        data,
-        "bms.charts.0.analysis.difficulty_table",
-    )
-
-    bms_difficulty_label = get_by_path(
-        data,
-        "bms.charts.0.analysis.difficulty_label",
-    )
-
-    bms_difficulty_display = get_by_path(
-        data,
-        "bms.charts.0.analysis.difficulty_display",
-    )
-
-    osu_url = get_by_path(
-        data,
-        "bms.charts.0.osu_url",
-    )
-
-    md5 = get_by_path(
-        data,
-        "bms.charts.0.bms_hashes.md5",
-    )
-
-    sha256 = get_by_path(
-        data,
-        "bms.charts.0.bms_hashes.sha256",
-    )
-
-    total_notes = get_by_path(
-        data,
-        "bms.charts.0.bms_summary.song_info.total_notes",
-    )
-
-    judge = get_by_path(
-        data,
-        "bms.charts.0.bms_summary.song_info.judge",
+    level = analyze_level(
+        route_mode=route_mode,
+        bms_difficulty_display=bms_difficulty_display,
+        sunny_sr=sunny_sr,
+        bms_difficulty_label = bms_difficulty_label,
+        bms_raw_score=bms_raw_score
     )
 
     derived = {
-        # title + subtitle 合并
         "title": merge_title_subtitle(title, subtitle),
-
-        # 如果最终不想输出 subtitle，config 里不要映射它
         "subtitle": subtitle,
-
         "artist": artist,
         "keys": keys,
         "type": normalize_route_type(route_mode),
 
-        # star/sunny_sr 保留两位
         "star": round_number(sunny_sr, 2),
         "sunny_sr": round_number(sunny_sr, 2),
-
-        "dan_estimate": build_dan_estimate(data),
+        "dan_estimate": dan_estimate,
+        "level": level,
 
         "bms_difficulty_table": bms_difficulty_table,
         "bms_difficulty_label": bms_difficulty_label,
         "bms_difficulty_display": bms_difficulty_display,
+        "bms_raw_score": bms_raw_score,
 
         "osu_url": osu_url,
         "md5": md5,
         "sha256": sha256,
 
         "total_notes": total_notes,
-
-        # song_last_ms 转换成 分钟:秒
         "song_length": format_ms_to_min_sec(song_last_ms),
-
-        # 如果你还想保留原始毫秒，可以保留这个
         "song_last_ms": song_last_ms,
-
         "ln_ratio": format_percent(ln_ratio, 2),
-
-        # total 保留整数
         "total": to_int(total),
-
         "judge": judge,
     }
+
     pattern_fields = build_pattern_fields(data)
     derived.update(pattern_fields)
-    
+
     return derived
+
+
 
 
 
@@ -313,6 +270,245 @@ def remove_none_values(data: dict[str, Any]) -> dict[str, Any]:
         for key, value in data.items()
         if value is not None
     }
+
+def parse_percent_value(value: Any) -> float | None:
+    """
+    解析百分比。
+    """
+    if value is None:
+        return None
+    try:
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return None
+            if text.endswith("%"):
+                return float(text[:-1].strip()) / 100.0
+            return float(text)
+        return float(value)
+    except Exception:
+        return None
+    
+
+def format_level_sr(value: Any) -> str:
+    try:
+        return f"{float(value):.2f}"
+    except Exception:
+        return ""
+
+
+def raw_score_to_dan_score(raw_score: Any, *, clamp: bool = True) -> float | None:
+    """
+    将 bms_raw_score 映射到新的 dan_score。
+
+    四次拟合：
+        y = a*x^4 + b*x^3 + c*x^2 + d*x + e
+    """
+    if raw_score in (None, ""):
+        return None
+
+    try:
+        x = float(raw_score)
+    except (TypeError, ValueError):
+        return None
+
+    if clamp:
+        x = max(0.0, min(1.0, x))
+
+    dan_score = (
+        10.41028042 * x ** 4
+        - 23.6866 * x ** 3
+        + 12.61178 * x ** 2
+        + 16.08867 * x
+        - 0.22817
+    )
+    dan_score = max(0.0, dan_score)
+
+    return dan_score
+
+
+def round_dan_score(score: Any) -> float | None:
+    if score in (None, ""):
+        return None
+
+    try:
+        value = float(score)
+    except (TypeError, ValueError):
+        return None
+
+    # 只有 10-15 使用 .0 / .5 舍入
+    if 10 <= value <= 15:
+        base = math.floor(value)
+        frac = value - base
+
+        if frac < 0.25:
+            return float(base)
+
+        if frac < 0.75:
+            return base + 0.5
+
+        return float(base + 1)
+
+    # 其他范围四舍五入到整数
+    return float(math.floor(value + 0.5))
+
+
+def sunny_sr_to_dan_score(
+    *,
+    sunny_sr: Any,
+    route_mode: Any,
+    intervals_config: dict[str, list[list[Any]]] = INTERVALS_CONFIG,
+    clamp: bool = True,
+    ndigits: int | None = 4,
+) -> float | None:
+    """
+    根据 sunny_sr 和 route_mode，从 config/intervals 中读取 interval，
+    线性插值计算数值型 dan_score。
+
+    route_mode == "RC" 使用 RC_DAN_INTERVALS_7K
+    其他情况使用 LN_DAN_INTERVALS_7K
+
+    interval 格式：
+        [sr_start, sr_end, label, dan_start, dan_end, dan_mid]
+    """
+
+    if sunny_sr in (None, ""):
+        return None
+
+    try:
+        x = float(sunny_sr)
+    except (TypeError, ValueError):
+        return None
+
+    mode = str(route_mode).upper() if route_mode is not None else ""
+
+    if mode == "RC":
+        intervals = intervals_config.get("RC_DAN_INTERVALS_7K", [])
+    else:
+        intervals = intervals_config.get("LN_DAN_INTERVALS_7K", [])
+
+    if not intervals:
+        return None
+
+    first = intervals[0]
+    last = intervals[-1]
+
+    min_sr = float(first[0])
+    max_sr = float(last[1])
+
+    min_dan = float(first[3])
+    max_dan = float(last[4])
+
+    # 超出最小范围
+    if x < min_sr:
+        if not clamp:
+            return None
+        result = min_dan
+        return round(result, ndigits) if ndigits is not None else result
+
+    # 超出最大范围
+    if x > max_sr:
+        if not clamp:
+            return None
+        result = max_dan
+        return round(result, ndigits) if ndigits is not None else result
+
+    # 查找所在 interval 并线性插值
+    for i, interval in enumerate(intervals):
+        sr_start, sr_end, label, dan_start, dan_end, dan_mid = interval
+
+        sr_start = float(sr_start)
+        sr_end = float(sr_end)
+        dan_start = float(dan_start)
+        dan_end = float(dan_end)
+
+        is_last = i == len(intervals) - 1
+
+        if sr_start <= x < sr_end or is_last and sr_start <= x <= sr_end:
+            if sr_end == sr_start:
+                result = dan_start
+            else:
+                ratio = (x - sr_start) / (sr_end - sr_start)
+                result = dan_start + ratio * (dan_end - dan_start)
+
+            if ndigits is not None:
+                result = round(result, ndigits)
+
+            return result
+
+    return None
+
+def format_dan_score(value: float | None) -> str | None:
+    """
+    格式化 dan_score。
+
+    示例：
+        8.0  -> "8"
+        12.0 -> "12"
+        12.5 -> "12.5"
+        16.0 -> "16"
+    """
+
+    if value is None:
+        return None
+
+    value = float(value)
+
+    if value.is_integer():
+        return str(int(value))
+
+    return f"{value:.1f}"
+
+
+
+
+def analyze_level(
+    *,
+    route_mode: Any,
+    sunny_sr: Any,
+    bms_difficulty_label: Any = None,
+    bms_difficulty_display: Any = None,
+    bms_raw_score: Any = None,
+) -> str | None:
+    mode = str(route_mode).upper() if route_mode is not None else ""
+
+    # RC 使用 ★，其他默认使用 ◆
+    prefix = LEVEL_PREFIX_SYMBOLS["RC"] if mode == "RC" else LEVEL_PREFIX_SYMBOLS["LN"]
+
+    dan_score = None
+    dan_score_bms =None
+    dan_score_sunny =None
+
+    # RC 优先使用 bms_raw_score
+    if mode == "RC" and bms_raw_score not in (None, ""):
+        dan_score_bms = raw_score_to_dan_score(bms_raw_score)
+        dan_score_sunny = sunny_sr_to_dan_score(
+            sunny_sr=sunny_sr,
+            route_mode=route_mode,
+            intervals_config=INTERVALS_CONFIG,
+            clamp=True,
+            ndigits=4,
+        )
+        dan_score =  dan_score_bms*0.7 + dan_score_sunny*0.3  
+
+    # raw_score 不可用时，使用 sunny_sr interval 插值
+    if dan_score is None:
+        dan_score = sunny_sr_to_dan_score(
+            sunny_sr=sunny_sr,
+            route_mode=route_mode,
+            intervals_config=INTERVALS_CONFIG,
+            clamp=True,
+            ndigits=4,
+        )
+
+    dan_score = round_dan_score(dan_score)
+    dan_score_text = format_dan_score(dan_score)
+
+    if dan_score_text is None:
+        return None
+
+    return f"{prefix}{dan_score_text}"
+
 
 
 def prepare_final_result_source(

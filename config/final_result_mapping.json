@@ -4,11 +4,13 @@
   "fields": {
     "derived.title": "title",
     "derived.artist": "artist",
+    "derived.level":"level",
     "derived.keys": "keys",
     "derived.type": "type",
     "derived.sunny_sr": "sunny_sr",
     "derived.bms_difficulty_display": "bms_difficulty",
     "derived.dan_estimate": "dan_estimate",
+    "derived.bms_raw_score":"bms_raw_score",
     "derived.bms_difficulty_label": "bms_difficulty_label",
     "derived.osu_url": "osu_url",
     "derived.md5": "md5",
