@@ -646,7 +646,6 @@ class MixedAnalysisTab:
         path = filedialog.askopenfilename(
             title="选择下载器 beatmap_info.json",
             filetypes=[
-                ("beatmap_info json", "beatmap_info.json"),
                 ("json files", "*.json"),
                 ("All files", "*.*"),
             ],
