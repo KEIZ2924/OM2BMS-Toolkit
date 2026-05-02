@@ -3,15 +3,6 @@ from typing import Union, List, Tuple, Dict
 from om2bms.converter.exceptions import BMSHitSoundException
 
 
-def normalize_bpm(bpm):
-    """
-    Normalize BPM float values to a stable precision for storage/comparison.
-    Using 4 decimals matches the existing calculate/store behavior better and
-    avoids mismatches caused by float artifacts.
-    """
-    return round(float(bpm), 4)
-
-
 class OsuMania:
     """Class containing information from .osu file"""
 
@@ -56,13 +47,11 @@ class OsuMania:
         """
         Parse float bpm into (INDEX, BPM)
         """
-        bpm = normalize_bpm(bpm)
         for e in self.float_bpm:
-            if normalize_bpm(e[1]) == bpm:
+            if e[1] == bpm:
                 return
         self.float_bpm.append(
-            (get_current_hs_count(len(self.float_bpm) + 1), bpm)
-        )
+            (get_current_hs_count(len(self.float_bpm) + 1), bpm))
 
 
 class OsuTimingPoint:
@@ -143,16 +132,15 @@ class HitSound(SoundEvent):
     hit_sound key
     """
 
-    def __init__(self, hitsound: int, tp: Union['OsuTimingPoint', None], sample_set: int, custom_index: int,
-                 filename: str, sample_num: int):
+    def __init__(self, hitsound: int, tp: Union[OsuTimingPoint, None], sample_set: int, custom_index:
+                 int, filename: str, sample_num: int):
         super().__init__()
         self.timing_point = tp
         self.hitsound = hitsound
         self.sample_set = sample_set
         self.custom_index = custom_index if custom_index != 0 else self.timing_point.sample_index
-        self.filename = filename if filename != "" else self.build_filename(
-            self.custom_index, self.sample_set, self.hitsound
-        )
+        self.filename = filename if filename != "" else self.build_filename(self.custom_index, self.sample_set,
+                                                                            self.hitsound)
         self.addition_set = self.sample_set  # needed?
         self.index = get_current_hs_count(sample_num)
 
@@ -245,32 +233,47 @@ class BMSMeasure:
         return str(ret)
 
     def create_data_line(self, channel: str, bits: int,
-                         locations: List[Tuple[List[int], Union['OsuHitObject', 'OsuBGSoundEvent', str]]]):
+                        locations: List[Tuple[int, Union[OsuHitObject, OsuBGSoundEvent, str]]]):
         """
         Wrapper for creating data_line
         """
         chars = {}
         locations_ = []
-        for e in locations:
-            locations_.append(e[0])
-            if isinstance(e[1], OsuHitObject):
-                if e[1].hit_sound is not None and BMSMeasure._hit_sounds:
-                    chars[e[0]] = e[1].hit_sound.index
-                    if chars[e[0]] == "":
-                        chars[e[0]] = "ZZ"
+
+        for loc, obj in locations:
+            if loc < 0 or loc >= bits:
+                print("[WARN create_data_line] out of range:",
+                    "measure=", self.measure_number,
+                    "channel=", channel,
+                    "bits=", bits,
+                    "location=", loc,
+                    "obj=", obj)
+                continue
+
+            locations_.append(loc)
+
+            if isinstance(obj, OsuHitObject):
+                if obj.hit_sound is not None and BMSMeasure._hit_sounds:
+                    chars[loc] = obj.hit_sound.index or "ZZ"
                 else:
-                    chars[e[0]] = "ZZ"
-            elif isinstance(e[1], OsuBGSoundEvent):
-                chars[e[0]] = e[1].index
+                    chars[loc] = "ZZ"
+            elif isinstance(obj, OsuBGSoundEvent):
+                chars[loc] = obj.index
             else:
-                chars[e[0]] = e[1]
+                chars[loc] = obj
+
+        if not locations_:
+            return
+
         self.lines.append(BMSMainDataLine(
             channel, bits, chars, locations_, self.measure_number))
+
 
     def create_measure_length_change(self, num_of_beats):
         """
         Channel 2 measure length change
         """
+        # beats_over_four = float(num_of_beats / 4)
         self.lines.append(BMSMainDataLine(
             "02", 1, {0: str(num_of_beats)}, [0], self.measure_number))
 
@@ -282,27 +285,18 @@ class BMSMeasure:
             "03", 1, {0: str(hex(bpm))[2:4].upper().zfill(2)}, [0], self.measure_number))
 
     def create_bpm_extended_change_line(self, bpm: Union[int, float], float_bpm_arr):
-        """
-        Channel 8 bpm change. Takes real number.
-        Conservative behavior:
-        - normalize float for matching
-        - if not found, auto-register into float_bpm_arr instead of raising
-        """
-        bpm = normalize_bpm(bpm)
-        tup = None
+        bpm = round(float(bpm), 4)
 
+        tup = (None, None)
         for e in float_bpm_arr:
-            if normalize_bpm(e[1]) == bpm:
+            if round(float(e[1]), 4) == bpm:
                 tup = e
                 break
 
-        if tup is None:
-            new_index = get_current_hs_count(len(float_bpm_arr) + 1)
-            tup = (new_index, bpm)
-            float_bpm_arr.append(tup)
-
         self.lines.append(BMSMainDataLine(
             "08", 1, {0: str(tup[0])}, [0], self.measure_number))
+
+
 
 
 class BMSMainDataLine:
@@ -314,11 +308,30 @@ class BMSMainDataLine:
         self.channel = channel
         self.data = self._build_data(bits, chars, locations)
         self.measure_number = measure_number
+    
+    def normalize_measure_location(measure_number: str, num: int, den: int):
+        """
+        Normalize a location fraction (num/den) into the correct measure.
+
+        Returns:
+            (new_measure_number: str, new_num: int, den: int)
+        """
+        measure_int = int(measure_number)
+        if den <= 0:
+            raise ValueError(f"Invalid denominator: {den}")
+        # 处理超出当前小节的情况
+        if num >= den:
+            measure_int += num // den
+            num = num % den
+        # 如果未来有负数情况，也可顺便处理
+        while num < 0:
+            measure_int -= 1
+            num += den
+        return str(measure_int).zfill(3), num, den
+
 
     def _build_data(self, bits: int, chars: Dict[int, str], locations: List[int]) -> str:
-        """
-        Builds the components of line
-        """
+        # print("[DEBUG build_data]", "bits=", bits, "locations=", locations, "chars=", chars)
         ret = ""
         location_index = 0
         for i in range(bits):
@@ -329,6 +342,7 @@ class BMSMainDataLine:
             else:
                 ret += "00"
         return ret
+
 
     def __str__(self):
         """
@@ -365,11 +379,11 @@ def get_current_hs_count(sample_num: int) -> str:
     return ret
 
 
+from typing import Optional, Union
+
 def calculate_bpm(timing_point: OsuTimingPoint) -> Union[int, float]:
     """
-    Calculates bpm and rounds if decimals 1-4 are 0 or 9.
-    Uses rounding instead of truncation to avoid mismatches like:
-    249.6 vs 249.5999, 230.3999 vs 230.3998
+    Calculates bpm and rounds if decimals 1-4 are 0 or 9
     """
     def get_nth_decimal(number, n):
         """
@@ -380,14 +394,17 @@ def calculate_bpm(timing_point: OsuTimingPoint) -> Union[int, float]:
     bpm_float = 1 / ((timing_point.ms_per_beat / 1000) / 60)
     ncount = count = 0
     for i in range(1, 5):
-        if get_nth_decimal(bpm_float, i) == 0:
+        digit = get_nth_decimal(bpm_float, i)
+        if digit == 0:
             count += 1
-        elif get_nth_decimal(bpm_float, i) == 9:
+        elif digit == 9:
             ncount += 1
 
     if count == 4:
         return int(round(bpm_float))
     elif ncount == 4:
-        return int(round(bpm_float))
+        return round(bpm_float)
     else:
-        return normalize_bpm(round(bpm_float, 4))
+        return round(bpm_float, 4)
+
+

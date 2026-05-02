@@ -6,7 +6,8 @@ from typing import Union, List, Tuple, Dict
 from fractions import Fraction
 from math import gcd
 from functools import reduce
-
+from numbers import Real
+from fractions import Fraction
 # import om2bms.converter.image_resizer
 from om2bms.converter.data_structures import OsuMania
 from om2bms.converter.data_structures import OsuTimingPoint
@@ -64,10 +65,26 @@ class OsuManiaToBMSParser:
             if text:
                 return text
         return default
-    
     @staticmethod
-    def normalize_bpm(bpm):
-        return round(float(bpm), 6)
+    def normalize_bpm(self, bpm):
+        """
+        Return int if bpm is effectively integer, otherwise return float.
+        """
+        if bpm is None:
+            return None
+        if isinstance(bpm, Fraction):
+            bpm = float(bpm)
+        elif isinstance(bpm, str):
+            bpm = float(bpm.strip())
+        elif not isinstance(bpm, Real):
+            return bpm
+        bpm = float(bpm)
+        if bpm <= 0:
+            raise ValueError(f"Invalid BPM: {bpm}")
+        bpm = round(bpm, 3)
+        if abs(bpm - round(bpm)) < 1e-3:
+            return int(round(bpm))
+        return bpm
 
     def __init__(self, in_file, out_dir, filename):
         self.reset()
@@ -106,6 +123,7 @@ class OsuManiaToBMSParser:
         music_start_param = self.music_start_time(self.beatmap)
         self.get_next_measure(
             music_start_param[0], music_start_param[1], self.beatmap)
+
         OsuManiaToBMSParser._out_file.close()
         file = os.path.dirname(in_file)
         if OsuManiaToBMSParser._convertion_options["BG"] and self.beatmap.stagebg is not None and \
@@ -207,55 +225,168 @@ class OsuManiaToBMSParser:
 
     def music_start_time(self, beatmap: OsuMania):
         """
-        Returns the measure offset and ms of first measure. Calls BMSMeasure and BMSMainDataLine on the BGM start line.
+        Returns the measure offset and ms of first measure.
+        Calls BMSMeasure and BMSMainDataLine on the BGM start line.
+
+        Fixed:
+            - prevent create_data_line out of range like location=97 bits=96
+            - normalize BGM start offset into correct measure
         """
+
         first_object = beatmap.objects[0]
         first_timing = beatmap.timing_points[0]
+
         ms_per_measure = first_timing.meter * first_timing.ms_per_beat
+
         use_obj = False
+
         if first_object.time < first_timing.time:
             start_time = first_object.time
             use_obj = True
         else:
             start_time = first_timing.time
-        # find first obj on down beat
+
+        # find first obj on/after first timing point
         if use_obj:
             i = 0
-            while beatmap.objects[i].time < first_timing.time:
+            while i < len(beatmap.objects) and beatmap.objects[i].time < first_timing.time:
                 i += 1
-            start_time = beatmap.objects[i].time
+
+            if i < len(beatmap.objects):
+                start_time = beatmap.objects[i].time
+            else:
+                start_time = first_object.time
+
+        # normalize start_time into one measure range
         while start_time - ms_per_measure > 0:
             start_time -= ms_per_measure
-        # start_time_offset is the time from 0 ms to the first obj
-        start_time_offset = ms_per_measure - \
-            start_time if start_time > 0 else abs(start_time)
+
+        # start_time_offset is the time from 0 ms to the BGM start position in BMS
+        if start_time > 0:
+            start_time_offset = ms_per_measure - start_time
+        else:
+            start_time_offset = abs(start_time)
 
         start_time_offset += OsuManiaToBMSParser._convertion_options["OFFSET"]
 
-        mus_start_at_001 = True if first_object.time + \
-            ms_per_measure < ms_per_measure else False
+        # 原来的写法：
+        # mus_start_at_001 = True if first_object.time + ms_per_measure < ms_per_measure else False
+        #
+        # 等价于：
+        # first_object.time < 0
+        #
+        # 所以这里直接写清楚。
+        mus_start_at_001 = first_object.time < 0
 
-        sto_fraction = start_time_offset / ms_per_measure
+        # ------------------------------------------------------------------
+        # Important fix:
+        #
+        # start_time_offset 可能大于一个小节。
+        # 例如原来会产生 97/96，这说明它已经超出当前小节。
+        #
+        # 所以这里拆成：
+        #   extra_measure_from_offset = 要额外移动几个小节
+        #   local_start_time_offset   = 当前目标小节内的位置
+        # ------------------------------------------------------------------
+        extra_measure_from_offset, local_start_time_offset = divmod(
+            start_time_offset,
+            ms_per_measure
+        )
+
+        extra_measure_from_offset = int(extra_measure_from_offset)
+
+        # 浮点误差修正
+        eps = 1e-7
+
+        if abs(local_start_time_offset - ms_per_measure) < eps:
+            extra_measure_from_offset += 1
+            local_start_time_offset = 0
+
+        if abs(local_start_time_offset) < eps:
+            local_start_time_offset = 0
+
+        sto_fraction = local_start_time_offset / ms_per_measure
         time_value_ratio = self.expansion_wrapper(sto_fraction, ms_per_measure)
-        if time_value_ratio == 0 and mus_start_at_001:
-            bms_measure = BMSMeasure("001")
+
+        # ------------------------------------------------------------------
+        # Decide base BMS measure
+        # ------------------------------------------------------------------
+        if mus_start_at_001:
+            base_measure_number = 1
             measure_start = 1
-            bms_measure.create_data_line("01", time_value_ratio.denominator, [
-                                         (time_value_ratio.numerator, "01")])
         else:
-            if mus_start_at_001:
-                bms_measure = BMSMeasure("001")
-                measure_start = 1
+            base_measure_number = 0
+
+            if extra_measure_from_offset == 0 and time_value_ratio == 0:
+                measure_start = 0
             else:
-                bms_measure = BMSMeasure("000")
-                if time_value_ratio == 0:
-                    measure_start = 0
-                else:
-                    measure_start = 1
-            bms_measure.create_data_line("01", time_value_ratio.denominator, [
-                                         (time_value_ratio.numerator, "01")])
+                measure_start = 1
+
+        target_measure_number = base_measure_number + extra_measure_from_offset
+
+        if target_measure_number < 0:
+            print(
+                "[music_start_time] warning: target_measure_number < 0, clamp to 000:",
+                f"target_measure_number={target_measure_number}",
+                f"base_measure_number={base_measure_number}",
+                f"extra_measure_from_offset={extra_measure_from_offset}",
+                f"start_time_offset={start_time_offset}",
+                f"ms_per_measure={ms_per_measure}"
+            )
+            target_measure_number = 0
+
+        bms_measure = BMSMeasure(str(target_measure_number).zfill(3))
+
+        # ------------------------------------------------------------------
+        # Final safety:
+        # expansion_wrapper should now produce 0 <= numerator < denominator.
+        # But keep protection here in case Fraction/rounding returns exactly 1.
+        # ------------------------------------------------------------------
+        loc = time_value_ratio.numerator
+        bits = time_value_ratio.denominator
+
+        if bits <= 0:
+            raise ValueError(f"[music_start_time] invalid bits: {bits}")
+
+        if loc < 0 or loc >= bits:
+            measure_add, loc = divmod(loc, bits)
+            target_measure_number += measure_add
+
+            if target_measure_number < 0:
+                print(
+                    "[music_start_time] warning: normalized target_measure_number < 0, clamp to 000:",
+                    f"target_measure_number={target_measure_number}",
+                    f"measure_add={measure_add}",
+                    f"loc={loc}",
+                    f"bits={bits}"
+                )
+                target_measure_number = 0
+                loc = 0
+
+            bms_measure = BMSMeasure(str(target_measure_number).zfill(3))
+        # print(
+        #     "[music_start_time debug]",
+        #     f"first_object.time={first_object.time}",
+        #     f"first_timing.time={first_timing.time}",
+        #     f"ms_per_measure={ms_per_measure}",
+        #     f"start_time={start_time}",
+        #     f"start_time_offset={start_time_offset}",
+        #     f"local_start_time_offset={local_start_time_offset}",
+        #     f"extra_measure_from_offset={extra_measure_from_offset}",
+        #     f"sto_fraction={sto_fraction}",
+        #     f"time_value_ratio={time_value_ratio}",
+        #     f"target_measure={str(target_measure_number).zfill(3)}",
+        #     f"bits={bits}",
+        #     f"loc={loc}",
+        #     f"mus_start_at_001={mus_start_at_001}",
+        #     f"measure_start={measure_start}"
+        # )
+        bms_measure.create_data_line("01", bits, [
+            (loc, "01")
+        ])
 
         measure_offset = measure_start
+
         if beatmap.objects[0].time > start_time:
             while not start_time >= beatmap.objects[0].time:
                 start_time += ms_per_measure
@@ -263,33 +394,46 @@ class OsuManiaToBMSParser:
         else:
             measure_offset = 0 if measure_start == 0 else 1
 
+        # ------------------------------------------------------------------
+        # Measure length change support
+        # ------------------------------------------------------------------
         if first_timing.meter != 4:
             if bms_measure.measure_number == "000":
                 bms_measure.create_measure_length_change(
-                    first_timing.meter / 4)
-            elif bms_measure.measure_number == "001":
+                    first_timing.meter / 4
+                )
+            else:
                 bms_measure0 = BMSMeasure("000")
                 bms_measure0.create_measure_length_change(
-                    first_timing.meter / 4)
+                    first_timing.meter / 4
+                )
                 self.write_buffer(bms_measure0)
+
                 bms_measure.create_measure_length_change(
-                    first_timing.meter / 4)
+                    first_timing.meter / 4
+                )
+
         self.write_buffer(bms_measure)
+
         if first_timing.meter != 4:
             for i in range(1, measure_offset):
                 bms_measure = BMSMeasure(str(i).zfill(3))
                 bms_measure.create_measure_length_change(
-                    first_timing.meter / 4)
+                    first_timing.meter / 4
+                )
                 self.write_buffer(bms_measure)
 
         first_measure_time = int(start_time)
+
         if first_object.time < first_measure_time - 1:
             measure_offset -= 1
             first_measure_time -= ms_per_measure
+
         if time_value_ratio == 0 and not mus_start_at_001:
             nearest_measure_offset = round(start_time / ms_per_measure)
             snapped_time = nearest_measure_offset * ms_per_measure
             diff = start_time - snapped_time
+
             if abs(diff) <= 5:
                 print(
                     f"[music_start_time] auto snap within 5ms: "
@@ -304,9 +448,10 @@ class OsuManiaToBMSParser:
                 )
                 measure_offset = nearest_measure_offset
 
-
         self.initialize_mtnv()
+
         return (measure_offset, first_measure_time)
+
 
     def get_next_measure(self, starting_measure: int, starting_ms: int, beatmap: OsuMania):
         """
@@ -449,23 +594,24 @@ class OsuManiaToBMSParser:
         True if n is close enough to base
         """
         return base - 2 <= n <= base + 2
-   
+
     def create_measure(self, current_measure, timing_point: OsuTimingPoint, measure_start: float,
-                       measure_number: str, measure_truncation: float):
+                    measure_number: str, measure_truncation: float):
         """
         Creates a BMSMeasure containing linedata
+        Returns:
+            (bms_measure, overflow_notes)
+        overflow_notes format:
+            { key: [note, note, ...], ... }
         """
         def get_numerator_with_gcd(fraction, gcd_) -> int:
-            """
-            Returns numerator of fraction with denom of gcd
-            """
             if fraction[1] == gcd_:
                 return fraction[0]
             elif fraction[1] < gcd_:
                 fraction[0] *= 2
                 fraction[1] *= 2
                 return get_numerator_with_gcd(fraction, gcd_)
-            else:  # fraction[1] > gcd: (switch from
+            else:
                 if fraction[1] % 3 == 0:
                     fraction[0] //= 3
                     fraction[1] //= 3
@@ -476,61 +622,114 @@ class OsuManiaToBMSParser:
                     fraction[1] *= 3
                 return get_numerator_with_gcd(fraction, gcd_)
 
-        #  if the measure is empty skip
         if len(current_measure) == 0:
-            return
+            return None, {}
 
         bms_measure = BMSMeasure(measure_number)
+        overflow_notes = {}
+
         if timing_point.meter != 4:
             bms_measure.create_measure_length_change(timing_point.meter / 4)
             self.initialize_mtnv()
         elif measure_truncation != 0:
             bms_measure.create_measure_length_change(measure_truncation)
+
         ms_per_measure = timing_point.meter * timing_point.ms_per_beat
 
-        if len(current_measure) != 0:
-            for key in sorted(current_measure.keys()):
-                # get notes from column/key and put them into a line
-                denoms = []
-                locations = []  # temp
-                locations_ = []  # to be passed into bmsmaindataline
-                for note in current_measure[key]:
-                    # if first_note:
-                    time_value_ms = round(abs(measure_start - note.time), 5)
-                    if self.within_2_ms(time_value_ms, 0):
-                        time_value_ratio = Fraction(0, 1)
-                    elif int(time_value_ms) in OsuManiaToBMSParser._ms_to_inverse_note_values:
-                        time_value_ratio = OsuManiaToBMSParser._ms_to_inverse_note_values[int(
-                            time_value_ms)]
-                    else:
-                        time_value_ratio = self.expansion_wrapper(
-                            time_value_ms / ms_per_measure, ms_per_measure)
-                    denoms.append(time_value_ratio.denominator)
-                    locations.append(
-                        ([time_value_ratio.numerator, time_value_ratio.denominator], note))
+        for key in sorted(current_measure.keys()):
+            denoms = []
+            locations = []
+            locations_ = []
 
-                if key == 0 and not current_measure[key][0].inherited:
-                    new_bpm = OsuManiaToBMSParser.normalize_bpm(calculate_bpm(current_measure[key][0]))
-                    if new_bpm <= 255 and isinstance(new_bpm, int):
-                        bms_measure.create_bpm_change_line(new_bpm)
-                    else:
-                        bms_measure.create_bpm_extended_change_line(
-                            new_bpm, self.beatmap.float_bpm)
-                elif key == 1:
-                    locations_ = sorted(locations, key=lambda x: x[0])
-                    for i in range(len(locations)):
-                        bms_measure.create_data_line(str(key).zfill(2), locations_[i][0][1],
-                                                     [(locations_[i][0][0], locations_[i][1])])
+            for note in current_measure[key]:
+                time_value_ms = round(note.time - measure_start, 5)
+
+                if self.within_2_ms(time_value_ms, 0):
+                    time_value_ratio = Fraction(0, 1)
+
+                elif time_value_ms < 0:
+                    print("[WARN] note before current measure:",
+                        "measure=", measure_number,
+                        "measure_start=", measure_start,
+                        "note_time=", note.time,
+                        "key=", key)
+                    continue
+
+                elif time_value_ms >= ms_per_measure and not self.within_2_ms(time_value_ms, ms_per_measure):
+                    print("[WARN] note beyond current measure, move to next:",
+                        "measure=", measure_number,
+                        "measure_start=", measure_start,
+                        "note_time=", note.time,
+                        "offset=", time_value_ms,
+                        "ms_per_measure=", ms_per_measure,
+                        "key=", key)
+
+                    if key not in overflow_notes:
+                        overflow_notes[key] = []
+                    overflow_notes[key].append(note)
+                    continue
+
+                elif int(time_value_ms) in OsuManiaToBMSParser._ms_to_inverse_note_values:
+                    time_value_ratio = OsuManiaToBMSParser._ms_to_inverse_note_values[int(time_value_ms)]
                 else:
-                    # make all denomaintors = to gcd
-                    gcd_ = reduce(lambda a, b: a * b // gcd(a, b), denoms)
-                    for list_ in locations:
-                        locations_.append(
-                            (get_numerator_with_gcd(list_[0], gcd_), list_[1]))
-                    bms_measure.create_data_line(str(key).zfill(
-                        2), gcd_, sorted(locations_, key=lambda x: x[0]))
+                    time_value_ratio = self.expansion_wrapper(
+                        time_value_ms / ms_per_measure, ms_per_measure)
 
-            return bms_measure
+                denoms.append(time_value_ratio.denominator)
+                locations.append(
+                    ([time_value_ratio.numerator, time_value_ratio.denominator], note))
+
+            if len(locations) == 0:
+                continue
+
+            if key == 0 and not current_measure[key][0].inherited:
+                new_bpm = calculate_bpm(current_measure[key][0])
+                if isinstance(new_bpm, int) and 1 <= new_bpm <= 255:
+                    bms_measure.create_bpm_change_line(new_bpm)
+                else:
+                    bms_measure.create_bpm_extended_change_line(
+                        new_bpm, self.beatmap.float_bpm)
+
+            elif key == 1:
+                locations_ = sorted(locations, key=lambda x: x[0])
+                for i in range(len(locations_)):
+                    num = locations_[i][0][0]
+                    den = locations_[i][0][1]
+                    print("[DEBUG key=1]", measure_number, locations)
+                    if num < 0 or num >= den:
+                        print("[WARN] invalid BGM location:",
+                            "measure=", measure_number,
+                            "location=", (num, den),
+                            "note_time=", getattr(locations_[i][1], "time", None))
+                        continue
+
+                    bms_measure.create_data_line(
+                        str(key).zfill(2),
+                        den,
+                        [(num, locations_[i][1])]
+                    )
+            else:
+                gcd_ = reduce(lambda a, b: a * b // gcd(a, b), denoms)
+                for list_ in locations:
+                    num = get_numerator_with_gcd(list_[0], gcd_)
+
+                    if num < 0 or num >= gcd_:
+                        print("[WARN] invalid key location:",
+                            "measure=", measure_number,
+                            "location=", (num, gcd_),
+                            "note_time=", getattr(list_[1], "time", None),
+                            "key=", key)
+                        continue
+
+                    locations_.append((num, list_[1]))
+
+                if len(locations_) > 0:
+                    bms_measure.create_data_line(
+                        str(key).zfill(2),
+                        gcd_,
+                        sorted(locations_, key=lambda x: x[0])
+                    )
+        return bms_measure, overflow_notes
 
 
     def create_header(self) -> List[str]:
@@ -562,7 +761,7 @@ class OsuManiaToBMSParser:
             buffer.append(f"#ARTIST {artist_text}/obj:{creator_text}")
         else:
             buffer.append(f"#ARTIST {artist_text}")
-        print(str(int(calculate_bpm(self.beatmap.timing_points[0]))))
+
         buffer.append(
             "#BPM " + str(int(calculate_bpm(self.beatmap.timing_points[0]))))
         buffer.append("#DIFFICULTY " + "5")
@@ -596,8 +795,7 @@ class OsuManiaToBMSParser:
             buffer.append("")
         if len(self.beatmap.float_bpm) > 0:
             for e in self.beatmap.float_bpm:
-                buffer.append("#BPM" + str(e[0]) + " " + str(OsuManiaToBMSParser.normalize_bpm(e[1])))
-
+                buffer.append("#BPM" + str(e[0]) + " " + str(e[1]))
             buffer.append("")
         # BGM FIELD
         buffer.append("*---------------------- EXPANSION FIELD")

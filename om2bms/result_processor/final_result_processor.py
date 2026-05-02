@@ -489,7 +489,7 @@ def analyze_level(
             clamp=True,
             ndigits=4,
         )
-        dan_score =  dan_score_bms*0.7 + dan_score_sunny*0.3  
+        dan_score =  dan_score_bms*0.6 + dan_score_sunny*0.4  
 
     # raw_score 不可用时，使用 sunny_sr interval 插值
     if dan_score is None:
